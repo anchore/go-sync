@@ -41,21 +41,21 @@ func NewStats(stats ...Stat) Stats {
 }
 
 func (s *statsSlice) Add(stat Stat, value float64) {
-	if s == nil || stat < 0 || int(stat) >= len(*s) {
+	if s == nil || int(stat) >= len(*s) {
 		return
 	}
 	(&(*s)[stat]).Add(value)
 }
 
 func (s *statsSlice) Set(stat Stat, value float64) {
-	if s == nil || stat < 0 || int(stat) >= len(*s) {
+	if s == nil || int(stat) >= len(*s) {
 		return
 	}
 	(&(*s)[stat]).Store(value)
 }
 
 func (s *statsSlice) Get(stat Stat) (value float64) {
-	if s == nil || stat < 0 || int(stat) >= len(*s) {
+	if s == nil || int(stat) >= len(*s) {
 		return 0
 	}
 	return (&(*s)[stat]).Load()

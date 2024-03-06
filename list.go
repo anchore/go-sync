@@ -87,11 +87,7 @@ func (s *List[T]) Each(fn func(value T)) {
 // sparingly and is only a con
 func (s *List[T]) Values() []T {
 	defer s.RLock()()
-	var out []T
-	for _, v := range s.values {
-		out = append(out, v)
-	}
-	return out
+	return append([]T{}, s.values...)
 }
 
 func (s *List[T]) Clear() {

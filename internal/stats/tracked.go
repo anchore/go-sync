@@ -121,7 +121,7 @@ func (t *TrackedFloat[T]) Min() T {
 }
 
 func (t *TrackedFloat[T]) Avg() float64 {
-	return float64(t.val.Load()) / float64(t.count.Load())
+	return t.val.Load() / t.count.Load()
 }
 
 func (t *TrackedFloat[T]) OnMaxSet(f func(max T)) {

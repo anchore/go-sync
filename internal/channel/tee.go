@@ -19,26 +19,19 @@ func Tee[T any](in chan T, receivers ...func(events chan T)) (writer chan T, add
 		_ = add(receiver)
 	}
 	go func() {
-		for {
-			select {
-			case val, open := <-in:
-				if !open {
-					clones.Each(func(clone chan T) {
-						close(clone)
-					})
-					return
-				} else {
-					go func() {
-						defer func() {
-							_ = recover()
-						}()
-						defer clones.RLock()()
-						clones.Each(func(clone chan T) {
-							clone <- val
-						})
-					}()
-				}
-			}
+		defer clones.Each(func(clone chan T) {
+			close(clone)
+		})
+		for val := range in {
+			go func(val T) {
+				defer func() {
+					_ = recover()
+				}()
+				defer clones.RLock()()
+				clones.Each(func(clone chan T) {
+					clone <- val
+				})
+			}(val)
 		}
 	}()
 	return in, add

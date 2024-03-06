@@ -3,6 +3,7 @@ package channel
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -15,7 +16,8 @@ func Test_ChannelTee(t *testing.T) {
 
 	received := &gosync.List[int]{}
 	wg := &sync.WaitGroup{}
-	closing := false
+	closing := atomic.Bool{}
+	closing.Store(false)
 
 	makeReceiver := func(number int) func(events chan any) {
 		return func(events chan any) {
@@ -28,7 +30,7 @@ func Test_ChannelTee(t *testing.T) {
 						wg.Done()
 					}
 					if !open {
-						if closing {
+						if closing.Load() {
 							wg.Done()
 						}
 						// t.Logf("end %d", number)
@@ -90,7 +92,7 @@ func Test_ChannelTee(t *testing.T) {
 	wg.Wait()
 	require.ElementsMatch(t, collect(received), arr(1, 2, 4, 6))
 
-	closing = true
+	closing.Store(true)
 	wg.Add(4)
 	close(events)
 	wg.Wait()

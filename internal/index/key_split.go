@@ -150,7 +150,6 @@ func (n *Node[T]) _collect(values *[]T) {
 	}
 
 	unlock()
-	return
 }
 
 // _startsWith returns the node starting with the given string
@@ -194,6 +193,7 @@ func (n *Node[T]) _find(s string) (node *Node[T], equal bool) {
 	return next._find(s[offset:])
 }
 
+//nolint:gocognit
 func (n *Node[T]) _makeNodeP(unlock *sync.UnlockFunc, name string, nodeIfEmpty *Node[T]) *Node[T] {
 	if name == "" {
 		return n

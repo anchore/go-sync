@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/anchore/go-sync/internal/stats"
@@ -217,4 +218,62 @@ func Test_collectorLimiting(t *testing.T) {
 		order.indexOf("post wg2") < order.indexOf("post wg3") &&
 			order.indexOf("post wg3") < order.indexOf("post wg1"),
 	)
+}
+
+func Test_collectorDecoupledFromExecutor(t *testing.T) {
+	// this test shows that the executor and collector are loosely coupled -- a collector
+	// does not depend on the lifetime of the executor given to it.
+	exec := NewExecutor(2)
+	c := NewCollector[string](exec)
+
+	wg1 := &sync.WaitGroup{}
+	wg1.Add(1)
+	wg2 := &sync.WaitGroup{}
+	wg2.Add(1)
+	wg3 := &sync.WaitGroup{}
+	wg3.Add(1)
+
+	executed := ""
+
+	wgReady := &sync.WaitGroup{}
+	wgReady.Add(2)
+
+	c.Provide(func() string {
+		wgReady.Done()
+		executed += "1_"
+		wg1.Done()
+		return "1"
+	})
+
+	exec.Execute(func() {
+		wg3.Wait()
+		executed += "1e_"
+	})
+
+	c.Provide(func() string {
+		wgReady.Done()
+		wg1.Wait()
+		executed += "2_"
+		wg2.Done()
+		return "2"
+	})
+
+	wgReady.Wait()
+
+	c.Provide(func() string {
+		executed += "3_"
+		return "3"
+	})
+
+	// the key to this test is here: since "1e_" is not part of the collector, it will not be waited on. If we
+	// did accidentally wait on it, the test would hang here.
+	got := c.Collect()
+
+	assert.Equal(t, []string{"1", "2", "3"}, got)
+
+	wg3.Done()
+
+	exec.Wait()
+
+	require.Equal(t, "1_2_3_1e_", executed)
 }

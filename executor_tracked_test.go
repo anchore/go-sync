@@ -1,12 +1,14 @@
 package sync
 
 import (
-	"github.com/anchore/go-sync/internal/atomic"
-	"github.com/anchore/go-sync/internal/stats"
-	"github.com/stretchr/testify/require"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/anchore/go-sync/internal/atomic"
+	"github.com/anchore/go-sync/internal/stats"
 )
 
 func Test_callstackAwareExecutor(t *testing.T) {
@@ -42,7 +44,7 @@ func Test_callstackAwareExecutor(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			e := NewExecutor(test.maxConcurrency)
-			e = NewTrackedExecutor(e, 10, func(f func()) { f() })
+			e = NewTrackedExecutor(e, func(f func()) { f() })
 
 			executed := atomic.Int32{}
 			concurrency := stats.Tracked[int]{}
@@ -74,27 +76,38 @@ func Test_callstackAwareExecutor(t *testing.T) {
 	}
 }
 
-func Test_concurrentCallstackAwareExecutors(t *testing.T) {
+func Test_TrackedExecutor(t *testing.T) {
 	e := NewExecutor(1)
-
-	e1 := NewTrackedExecutor(e, 10, func(f func()) { f() })
+	e1 := NewTrackedExecutor(e, func(f func()) { f() })
 
 	wg := sync.WaitGroup{}
-
 	wg.Add(1)
 	e1.Execute(func() {
+		innerExecuted := false
+		// would cause deadlock if not executed serially
 		e1.Execute(func() {
-			wg.Done()
+			innerExecuted = true
 		})
+		require.True(t, innerExecuted)
+		wg.Done()
 	})
+	wg.Wait()
+}
 
+func Test_uniqueTrackedExecutors(t *testing.T) {
+	e := NewExecutor(1)
+	e1 := NewTrackedExecutor(e, func(f func()) { f() })
+	e2 := NewTrackedExecutor(e, func(f func()) { f() })
+
+	wg := sync.WaitGroup{}
 	wg.Add(1)
-	e2 := NewTrackedExecutor(e, 10, func(f func()) { f() })
 	e1.Execute(func() {
+		e2executed := false
 		e2.Execute(func() {
-			wg.Done()
+			e2executed = true
 		})
+		require.False(t, e2executed)
+		wg.Done()
 	})
-
 	wg.Wait()
 }

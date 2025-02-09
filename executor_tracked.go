@@ -5,8 +5,6 @@ import (
 )
 
 type callstackAwareExecutor struct {
-	buffers  List[*[]uintptr]
-	maxStack int
 	marker   func(func())
 	markerPC uintptr
 	executor Executor
@@ -15,9 +13,8 @@ type callstackAwareExecutor struct {
 // NewTrackedExecutor returns an executor that is aware of _itself_, such that
 // if it is already executing something in parallel, it will execute subsequent calls in the same
 // callstack serially.
-func NewTrackedExecutor(executor Executor, maxStack int, markFunc func(func())) Executor {
+func NewTrackedExecutor(executor Executor, markFunc func(func())) Executor {
 	e := &callstackAwareExecutor{
-		maxStack: maxStack,
 		marker:   markFunc,
 		executor: executor,
 	}
@@ -25,10 +22,10 @@ func NewTrackedExecutor(executor Executor, maxStack int, markFunc func(func())) 
 	// figure out the program counter of the provided markFunc
 	var pc uintptr
 	markFunc(func() {
-		buf := make([]uintptr, e.maxStack)
-		defer e.buffers.Push(&buf)
+		arr := [1]uintptr{}
+		buf := arr[:]
 		_ = runtime.Callers(2, buf)
-		frames := runtime.CallersFrames(buf[:1])
+		frames := runtime.CallersFrames(buf)
 		frame, _ := frames.Next()
 		pc = frame.PC
 	})
@@ -39,28 +36,35 @@ func NewTrackedExecutor(executor Executor, maxStack int, markFunc func(func())) 
 var _ Executor = (*callstackAwareExecutor)(nil)
 
 func (e *callstackAwareExecutor) Execute(fn func()) {
-	pcPtr, ok := e.buffers.Pop()
-	if !ok {
-		buf := make([]uintptr, e.maxStack)
-		pcPtr = &buf
-	}
-	defer e.buffers.Push(pcPtr)
-	callers := *pcPtr
+	const bufSize = 8
+	arr := [bufSize]uintptr{}
+	callers := arr[:]
 
 	inExecutor := false
-	// 3 here means: skip runtime.Callers, this invocation, and prior caller which won't be the mark
-	count := runtime.Callers(3, callers)
-	frames := runtime.CallersFrames(callers[:count])
 
+	// starting with 3 here means: skip runtime.Callers, this invocation, and prior caller which won't be the mark
+	start := 3
+check:
 	for {
-		frame, more := frames.Next()
-		if frame.PC == e.markerPC {
-			inExecutor = true
+		count := runtime.Callers(start, callers)
+		if count == 0 {
 			break
 		}
-		if !more {
+		frames := runtime.CallersFrames(callers[:count])
+		for {
+			frame, more := frames.Next()
+			if frame.PC == e.markerPC {
+				inExecutor = true
+				break check
+			}
+			if !more {
+				break
+			}
+		}
+		if count < bufSize {
 			break
 		}
+		start += bufSize
 	}
 	if inExecutor {
 		fn()

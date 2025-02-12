@@ -124,7 +124,7 @@ func (t *TrackedFloat[T]) Avg() float64 {
 	return t.val.Load() / t.count.Load()
 }
 
-func (t *TrackedFloat[T]) OnMaxSet(f func(max T)) {
+func (t *TrackedFloat[T]) OnMaxSet(f func(T)) {
 	if t.maxSet != nil {
 		existing := t.maxSet
 		t.maxSet = func(val T) {

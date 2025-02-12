@@ -1,17 +1,23 @@
 package sync
 
-import "context"
+import (
+	"context"
+)
 
-type executorKey struct{}
+type ExecutorName string
 
-func ContextExecutor(ctx context.Context) Executor {
-	executor, ok := ctx.Value(executorKey{}).(Executor)
+type executorKey struct {
+	name ExecutorName
+}
+
+func ContextExecutor(ctx context.Context, name ExecutorName) Executor {
+	executor, ok := ctx.Value(executorKey{name: name}).(Executor)
 	if !ok {
 		return sequentialExecutor{}
 	}
 	return executor
 }
 
-func SetContextExecutor(ctx context.Context, executor Executor) context.Context {
-	return context.WithValue(ctx, executorKey{}, executor)
+func SetContextExecutor(ctx context.Context, name ExecutorName, executor Executor) context.Context {
+	return context.WithValue(ctx, executorKey{name: name}, executor)
 }

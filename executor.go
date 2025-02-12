@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"math"
 	"sync"
 	"sync/atomic"
 )
@@ -22,7 +23,7 @@ type Executor interface {
 //	  0: serial, executes in the same thread/routine as the caller of Execute
 //	> 0: a bounded executor with the maximum concurrency provided
 func NewExecutor(maxConcurrency int) Executor {
-	if maxConcurrency < 0 {
+	if maxConcurrency < 0 || maxConcurrency > math.MaxInt32 {
 		return &unboundedExecutor{}
 	}
 	if maxConcurrency == 0 {

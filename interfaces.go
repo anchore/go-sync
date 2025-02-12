@@ -1,19 +1,25 @@
 package sync
 
-// Provider is the interface to use when returning a single item
+// Provider returns a single item
 type Provider[T any] interface {
 	Get() T
 }
 
-// Iterator is used when there are multiple values to be operated on
-type Iterator[T any] interface {
-	Each(fn func(value T))
+// Iterable provides a function to iterate a series of values
+type Iterable[T any] interface {
+	// Seq provides an iter.Seq compatible iterator
+	Seq(fn func(value T) bool)
+}
+
+// Appender to allow values to be appended
+type Appender[T any] interface {
+	Append(value T)
 }
 
 // Collection is a generic collection of values, which can be added to, removed from, and provide a length
 type Collection[T any] interface {
-	Iterator[T]
-	Add(value T)
+	Iterable[T]
+	Appender[T]
 	Remove(value T)
 	Contains(value T) bool
 	Len() int

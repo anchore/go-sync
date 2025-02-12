@@ -15,26 +15,26 @@ func Test_List(t *testing.T) {
 	for _, e := range expected {
 		s.Push(e)
 	}
-	require.Equal(t, expected, collect(sl))
+	require.Equal(t, expected, sl.Values())
 	for i := range expected {
 		ev := len(expected) - 1 - i
 		exp := expected[:ev]
 		v, ok := s.Pop()
 		require.True(t, ok)
 		require.Equal(t, expected[ev], v)
-		require.Equal(t, exp, collect(sl))
+		require.Equal(t, exp, sl.Values())
 	}
 
 	// as a List:
 	ls := &List[int]{}
 	for _, v := range expected {
-		ls.Add(v)
+		ls.Append(v)
 	}
-	require.Equal(t, expected, collect(ls))
+	require.Equal(t, expected, ls.Values())
 	for i, e := range expected {
 		exp := expected[i+1:]
 		ls.Remove(e)
-		require.Equal(t, exp, collect(ls))
+		require.Equal(t, exp, ls.Values())
 	}
 
 	// as a queue:
@@ -43,37 +43,29 @@ func Test_List(t *testing.T) {
 	for _, e := range expected {
 		q.Enqueue(e)
 	}
-	require.Equal(t, expected, collect(sl))
+	require.Equal(t, expected, sl.Values())
 	for i, e := range expected {
 		exp := expected[i+1:]
 		got, ok := q.Dequeue()
 		require.True(t, ok)
 		require.Equal(t, e, got)
-		require.Equal(t, exp, collect(sl))
+		require.Equal(t, exp, sl.Values())
 	}
 
 	// from the middle:
 	sl = &List[int]{}
 	for _, value := range expected {
-		sl.Add(value)
+		sl.Append(value)
 	}
-	require.Equal(t, expected, collect(sl))
+	require.Equal(t, expected, sl.Values())
 	sl.Remove(4)
-	require.Equal(t, []int{0, 1, 2, 3, 5}, collect(sl))
+	require.Equal(t, []int{0, 1, 2, 3, 5}, sl.Values())
 	sl.Remove(2)
-	require.Equal(t, []int{0, 1, 3, 5}, collect(sl))
+	require.Equal(t, []int{0, 1, 3, 5}, sl.Values())
 	sl.Remove(1)
-	require.Equal(t, []int{0, 3, 5}, collect(sl))
+	require.Equal(t, []int{0, 3, 5}, sl.Values())
 	sl.Remove(5)
-	require.Equal(t, []int{0, 3}, collect(sl))
+	require.Equal(t, []int{0, 3}, sl.Values())
 	sl.Remove(0)
-	require.Equal(t, []int{3}, collect(sl))
-}
-
-func collect(values Iterator[int]) (out []int) {
-	out = []int{} // require.Equal() tests will fail when returning nil, since the expected slices are never nil
-	values.Each(func(value int) {
-		out = append(out, value)
-	})
-	return out
+	require.Equal(t, []int{3}, sl.Values())
 }

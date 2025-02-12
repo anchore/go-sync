@@ -1,53 +1,66 @@
 package sync
 
 import (
+	"errors"
+	"iter"
 	"sync"
 )
 
-type ProviderFunc[T any] func() T
-
-// Collector describes an executor that runs providers in parallel and returns the results from all providers
-// after they have completed by using the Collect function
-type Collector[T any] interface {
-	// Provide is used to add providers to this collector
-	Provide(provider ProviderFunc[T])
-
-	// Collect waits for all providers to complete and returns the results from all executions
-	// after an item has been returned by Collect, it will be guaranteed not to be returned again
-	Collect() (everything []T)
+// Collect iterates over the provided values, executing the processor in parallel to map each incoming value to a result.
+// The collector is used to apply the results, with an exclusive lock; collector will never execute in parallel.
+// All errors returned from processor functions will be joined with errors.Join as the returned error.
+func Collect[From, To any](executor Executor, values iter.Seq[From], collector func(From, To), processor func(From) (To, error)) error {
+	var errs []error
+	var lock sync.Mutex
+	var wg sync.WaitGroup
+	for value := range values {
+		wg.Add(1)
+		executor.Execute(func() {
+			defer wg.Done()
+			result, err := processor(value)
+			lock.Lock()
+			defer lock.Unlock()
+			if err != nil {
+				errs = append(errs, err)
+			}
+			if collector != nil {
+				collector(value, result)
+			}
+		})
+	}
+	wg.Wait()
+	return errors.Join(errs...)
 }
 
-func NewCollector[T any](executor Executor) Collector[T] {
-	return &collector[T]{
-		executor: executor,
+// CollectSlice is a specialized Collect call which appends results to a slice
+func CollectSlice[From, To any](executor Executor, values iter.Seq[From], slice *[]To, processor func(From) (To, error)) error {
+	return Collect(executor, values, func(_ From, value To) {
+		*slice = append(*slice, value)
+	}, processor)
+}
+
+// CollectMap is a specialized Collect call which fills a map using the incoming value as a key, mapped to the result
+func CollectMap[From comparable, To any](executor Executor, values iter.Seq[From], result map[From]To, processor func(From) (To, error)) error {
+	return Collect(executor, values, func(key From, value To) {
+		result[key] = value
+	}, processor)
+}
+
+// ToSeq converts a slice to an iter.Seq
+func ToSeq[T any](values []T) iter.Seq[T] {
+	return func(yield func(T) bool) {
+		for _, value := range values {
+			if !yield(value) {
+				return
+			}
+		}
 	}
 }
 
-type collector[T any] struct {
-	executor Executor
-	out      []T
-	mu       sync.Mutex
-	wg       sync.WaitGroup
+// ToSlice takes an iter.Seq and returns a slice of the values returned
+func ToSlice[T any](values iter.Seq[T]) (everything []T) {
+	for v := range values {
+		everything = append(everything, v)
+	}
+	return everything
 }
-
-func (c *collector[T]) Provide(provider ProviderFunc[T]) {
-	c.wg.Add(1)
-	c.executor.Execute(func() {
-		defer c.wg.Done()
-		values := provider()
-		c.mu.Lock()
-		c.out = append(c.out, values)
-		c.mu.Unlock()
-	})
-}
-
-func (c *collector[T]) Collect() (everything []T) {
-	c.wg.Wait()
-	c.mu.Lock()
-	everything = c.out
-	c.out = nil
-	c.mu.Unlock()
-	return
-}
-
-var _ Collector[int] = (*collector[int])(nil)

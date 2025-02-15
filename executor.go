@@ -12,6 +12,9 @@ type Executor interface {
 	// Execute adds a unit of work to be executed by the executor
 	Execute(func())
 
+	// ChildExecutor returns an executor that is safe to be passed down within parallel calls to use as this executor
+	ChildExecutor() Executor
+
 	// Wait blocks and waits for all the executing functions to be completed before returning, if more functions are
 	// added to be executed by this executor after the Wait call, these will also complete before Wait proceeds
 	Wait()
@@ -39,6 +42,13 @@ type boundedExecutor struct {
 	executing     atomic.Int32
 	queue         List[*func()]
 	wg            sync.WaitGroup
+}
+
+func (e *boundedExecutor) ChildExecutor() Executor {
+	// return a NEW executor with the same bound
+	return &boundedExecutor{
+		maxConcurrent: e.maxConcurrent,
+	}
 }
 
 var _ Executor = (*boundedExecutor)(nil)

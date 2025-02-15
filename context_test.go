@@ -7,12 +7,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestContextExecutor(t *testing.T) {
+func Test_GetExecutor(t *testing.T) {
 	t.Run("WithExecutorInContext", func(t *testing.T) {
 		executor := NewExecutor(2)
 		ctx := SetContextExecutor(context.Background(), "cpu", executor)
 
-		result := ContextExecutor(ctx, "cpu")
+		result := GetExecutor(ctx, "cpu")
 
 		require.NotNil(t, result)
 		require.IsType(t, &boundedExecutor{}, result)
@@ -21,7 +21,7 @@ func TestContextExecutor(t *testing.T) {
 	t.Run("WithoutExecutorInContext", func(t *testing.T) {
 		ctx := context.Background()
 
-		result := ContextExecutor(ctx, "cpu")
+		result := GetExecutor(ctx, "cpu")
 
 		require.NotNil(t, result)
 		require.IsType(t, sequentialExecutor{}, result)
@@ -31,7 +31,7 @@ func TestContextExecutor(t *testing.T) {
 		executor := NewExecutor(1)
 		ctx := SetContextExecutor(context.Background(), "cpu", executor)
 
-		result := ContextExecutor(ctx, "io")
+		result := GetExecutor(ctx, "io")
 
 		require.NotNil(t, result)
 		require.IsType(t, sequentialExecutor{}, result)

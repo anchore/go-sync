@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"context"
 	"sync"
 )
 
@@ -12,11 +13,11 @@ func (u *unboundedExecutor) ChildExecutor() Executor {
 	return u // safe for all children to use this executor
 }
 
-func (u *unboundedExecutor) Execute(f func()) {
+func (u *unboundedExecutor) Execute(ctx context.Context, f func(context.Context)) {
 	u.wg.Add(1)
 	go func() {
 		defer u.wg.Done()
-		f()
+		f(ctx)
 	}()
 }
 

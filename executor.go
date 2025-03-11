@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"context"
 	"math"
 	"sync"
 	"sync/atomic"
@@ -10,7 +11,7 @@ import (
 // of work to be completed
 type Executor interface {
 	// Execute adds a unit of work to be executed by the executor
-	Execute(func())
+	Execute(context.Context, func(context.Context))
 
 	// ChildExecutor returns an executor that is safe to be passed down within parallel calls to use as this executor
 	ChildExecutor() Executor
@@ -42,22 +43,29 @@ type boundedExecutor struct {
 	executing     atomic.Int32
 	queue         List[*func()]
 	wg            sync.WaitGroup
+	childLock     sync.Mutex
+	childExecutor *boundedExecutor
 }
 
 func (e *boundedExecutor) ChildExecutor() Executor {
-	// return a NEW executor with the same bound
-	return &boundedExecutor{
-		maxConcurrent: e.maxConcurrent,
+	e.childLock.Lock()
+	defer e.childLock.Unlock()
+	// create a child executor with the same bound
+	if e.childExecutor == nil {
+		e.childExecutor = &boundedExecutor{
+			maxConcurrent: e.maxConcurrent,
+		}
 	}
+	return e.childExecutor
 }
 
 var _ Executor = (*boundedExecutor)(nil)
 
-func (e *boundedExecutor) Execute(f func()) {
+func (e *boundedExecutor) Execute(ctx context.Context, f func(context.Context)) {
 	e.wg.Add(1)
 	fn := func() {
 		defer e.wg.Done()
-		f()
+		f(ctx)
 	}
 	e.queue.Enqueue(&fn)
 	if e.executing.Load() < e.maxConcurrent {

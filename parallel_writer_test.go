@@ -2,6 +2,7 @@ package sync
 
 import (
 	"bytes"
+	"context"
 	"sync/atomic"
 	"testing"
 
@@ -75,7 +76,8 @@ func Test_ParallelWriter(t *testing.T) {
 
 			contents := "some complicated contents"
 
-			w := ParallelWriter(NewExecutor(test.maxConcurrency), w1, w2, w3)
+			ctx := SetContextExecutor(context.TODO(), "", NewExecutor(test.maxConcurrency))
+			w := ParallelWriter(&ctx, "", w1, w2, w3)
 
 			iterations := 0
 			for i := 0; i < len(contents); i += test.bufferSize {

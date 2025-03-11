@@ -1,18 +1,24 @@
 package sync
 
 import (
+	"context"
 	"errors"
 	"io"
 	"sync"
 )
 
 type parallelWriter struct {
+	ctx      context.Context
 	executor Executor
 	writers  []io.Writer
 }
 
-func ParallelWriter(executor Executor, writers ...io.Writer) io.Writer {
+// ParallelWriter returns a writer that writes the contents of each write call in parallel
+// to all provided writers
+func ParallelWriter(ctx *context.Context, executorName string, writers ...io.Writer) io.Writer {
+	executor := GetExecutor(ctx, executorName)
 	return &parallelWriter{
+		ctx:      *ctx,
 		executor: executor,
 		writers:  writers,
 	}
@@ -23,7 +29,7 @@ func (w *parallelWriter) Write(p []byte) (int, error) {
 	wg := sync.WaitGroup{}
 	wg.Add(len(w.writers))
 	for _, writer := range w.writers {
-		w.executor.Execute(func() {
+		w.executor.Execute(w.ctx, func(_ context.Context) {
 			defer wg.Done()
 			_, err := writer.Write(p)
 			if err != nil {

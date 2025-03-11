@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"time"
@@ -50,7 +51,7 @@ func Test_Executor(t *testing.T) {
 			concurrency := stats.Tracked[int]{}
 
 			for i := 0; i < count; i++ {
-				e.Execute(func() {
+				e.Execute(context.TODO(), func(ctx context.Context) {
 					defer concurrency.Incr()()
 					executed.Add(1)
 					time.Sleep(10 * time.Nanosecond)
@@ -78,9 +79,9 @@ func Test_Executor2(t *testing.T) {
 	concurrent := stats.Tracked[int64]{}
 	total := atomic.Uint64{}
 
-	makeFunc := func(idx int) func() {
+	makeFunc := func(idx int) func(context.Context) {
 		wgs[idx].Add(1)
-		return func() {
+		return func(_ context.Context) {
 			defer total.Add(1)
 			concurrent.Incr()
 			wgs[idx].Wait()
@@ -93,7 +94,7 @@ func Test_Executor2(t *testing.T) {
 	e := NewExecutor(concurrency)
 	for i := 0; i < count; i++ {
 		expected = append(expected, i)
-		e.Execute(makeFunc(i))
+		e.Execute(context.TODO(), makeFunc(i))
 	}
 
 	go func() {
@@ -118,9 +119,9 @@ func Test_executorSmall(t *testing.T) {
 	concurrent := stats.Tracked[int]{}
 	total := atomic.Uint64{}
 
-	makeFunc := func(idx int) func() {
+	makeFunc := func(idx int) func(context.Context) {
 		wgs[idx].Add(1)
-		return func() {
+		return func(_ context.Context) {
 			if idx < int(concurrency) {
 				waiting.Done()
 			}
@@ -133,7 +134,7 @@ func Test_executorSmall(t *testing.T) {
 
 	e := NewExecutor(concurrency)
 	for i := 0; i < count; i++ {
-		e.Execute(makeFunc(i))
+		e.Execute(context.TODO(), makeFunc(i))
 	}
 
 	time.Sleep(10 * time.Millisecond)
@@ -169,7 +170,7 @@ func Test_explicitExecutorLimiting(t *testing.T) {
 	wgReady := &sync.WaitGroup{}
 	wgReady.Add(2)
 
-	e.Execute(func() {
+	e.Execute(context.TODO(), func(_ context.Context) {
 		order.Append("pre wg1")
 		wgReady.Done()
 		wg1.Wait()
@@ -177,7 +178,7 @@ func Test_explicitExecutorLimiting(t *testing.T) {
 		executed += "1_"
 	})
 
-	e.Execute(func() {
+	e.Execute(context.TODO(), func(_ context.Context) {
 		order.Append("pre wg2")
 		wgReady.Done()
 		wg2.Wait()
@@ -188,7 +189,7 @@ func Test_explicitExecutorLimiting(t *testing.T) {
 
 	wgReady.Wait()
 
-	e.Execute(func() {
+	e.Execute(context.TODO(), func(_ context.Context) {
 		order.Append("pre wg3")
 		wg3.Wait()
 		order.Append("post wg3")

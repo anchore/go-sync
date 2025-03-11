@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"context"
 	"iter"
 	"testing"
 	"time"
@@ -18,7 +19,8 @@ func Test_ReduceCollectSlice(t *testing.T) {
 	concurrency := stats.Tracked[int]{}
 
 	var values []int
-	err := CollectSlice(e, countIter(count), &values, func(i int) (int, error) {
+	ctx := SetContextExecutor(context.TODO(), "", e)
+	err := CollectSlice(ctx, "", countIter(count), &values, func(ctx context.Context, i int) (int, error) {
 		defer concurrency.Incr()()
 
 		time.Sleep(1 * time.Millisecond)
@@ -43,7 +45,8 @@ func Test_ReduceCollectMap(t *testing.T) {
 	concurrency := stats.Tracked[int]{}
 
 	values := map[int]int{}
-	err := CollectMap(e, countIter(count), values, func(i int) (int, error) {
+	ctx := SetContextExecutor(context.TODO(), "", e)
+	err := CollectMap(ctx, "", countIter(count), values, func(ctx context.Context, i int) (int, error) {
 		defer concurrency.Incr()()
 
 		time.Sleep(1 * time.Millisecond)

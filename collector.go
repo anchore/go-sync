@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"context"
 	"errors"
 	"iter"
 	"sync"
@@ -9,22 +10,23 @@ import (
 // Collect iterates over the provided values, executing the processor in parallel to map each incoming value to a result.
 // The collector is used to apply the results, with an exclusive lock; collector will never execute in parallel.
 // All errors returned from processor functions will be joined with errors.Join as the returned error.
-func Collect[From, To any](executor Executor, values iter.Seq[From], collector func(From, To), processor func(From) (To, error)) error {
+func Collect[From, To any](ctx context.Context, executorName string, values iter.Seq[From], collector func(context.Context, From, To), processor func(context.Context, From) (To, error)) error {
 	var errs []error
 	var lock sync.Mutex
 	var wg sync.WaitGroup
+	executor := GetExecutor(&ctx, executorName)
 	for value := range values {
 		wg.Add(1)
-		executor.Execute(func() {
+		executor.Execute(ctx, func(ctx context.Context) {
 			defer wg.Done()
-			result, err := processor(value)
+			result, err := processor(ctx, value)
 			lock.Lock()
 			defer lock.Unlock()
 			if err != nil {
 				errs = append(errs, err)
 			}
 			if collector != nil {
-				collector(value, result)
+				collector(ctx, value, result)
 			}
 		})
 	}
@@ -33,15 +35,15 @@ func Collect[From, To any](executor Executor, values iter.Seq[From], collector f
 }
 
 // CollectSlice is a specialized Collect call which appends results to a slice
-func CollectSlice[From, To any](executor Executor, values iter.Seq[From], slice *[]To, processor func(From) (To, error)) error {
-	return Collect(executor, values, func(_ From, value To) {
+func CollectSlice[From, To any](ctx context.Context, executorName string, values iter.Seq[From], slice *[]To, processor func(context.Context, From) (To, error)) error {
+	return Collect(ctx, executorName, values, func(ctx context.Context, _ From, value To) {
 		*slice = append(*slice, value)
 	}, processor)
 }
 
 // CollectMap is a specialized Collect call which fills a map using the incoming value as a key, mapped to the result
-func CollectMap[From comparable, To any](executor Executor, values iter.Seq[From], result map[From]To, processor func(From) (To, error)) error {
-	return Collect(executor, values, func(key From, value To) {
+func CollectMap[From comparable, To any](ctx context.Context, executorName string, values iter.Seq[From], result map[From]To, processor func(context.Context, From) (To, error)) error {
+	return Collect(ctx, executorName, values, func(ctx context.Context, key From, value To) {
 		result[key] = value
 	}, processor)
 }

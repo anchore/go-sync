@@ -4,32 +4,37 @@ import (
 	"context"
 )
 
-type ExecutorName string
-
 type executorKey struct {
-	name ExecutorName
+	name string
 }
 
-// ContextExecutor returns an executor and a child context which prevents deadlock
-// in the case that child processes use the same bounded executor
-func ContextExecutor(ctx context.Context, name ExecutorName) (context.Context, Executor) {
-	executor := GetExecutor(ctx, name)
-	child := executor.ChildExecutor()
-	ctx = SetContextExecutor(ctx, name, child)
-	return ctx, executor
+// HasExecutor returns true when the named executor is available in the context
+func HasExecutor(ctx context.Context, name string) bool {
+	return ctx.Value(executorKey{name: name}) != nil
 }
 
 // GetExecutor returns an executor in context with the given name, or a serial executor if none exists
-func GetExecutor(ctx context.Context, name ExecutorName) Executor {
-	executor, ok := ctx.Value(executorKey{name: name}).(Executor)
-	if !ok {
+// and replaces the context with one that contains a new executor which won't deadlock
+func GetExecutor(ctx *context.Context, name string) Executor {
+	if ctx == nil {
 		return sequentialExecutor{}
 	}
+	executor := getExecutor(*ctx, name)
+	*ctx = SetContextExecutor(*ctx, name, executor.ChildExecutor())
 	return executor
 }
 
 // SetContextExecutor returns a context with the named provided executor for use with
 // GetExecutor and ContextExecutor
-func SetContextExecutor(ctx context.Context, name ExecutorName, executor Executor) context.Context {
+func SetContextExecutor(ctx context.Context, name string, executor Executor) context.Context {
 	return context.WithValue(ctx, executorKey{name: name}, executor)
+}
+
+// getExecutor only returns the executor in context
+func getExecutor(ctx context.Context, name string) Executor {
+	executor, ok := ctx.Value(executorKey{name: name}).(Executor)
+	if !ok {
+		return sequentialExecutor{}
+	}
+	return executor
 }

@@ -36,14 +36,14 @@ func Collect[From, To any](ctx context.Context, executorName string, values iter
 
 // CollectSlice is a specialized Collect call which appends results to a slice
 func CollectSlice[From, To any](ctx context.Context, executorName string, values iter.Seq[From], slice *[]To, processor func(context.Context, From) (To, error)) error {
-	return Collect(ctx, executorName, values, func(ctx context.Context, _ From, value To) {
+	return Collect(ctx, executorName, values, func(_ context.Context, _ From, value To) {
 		*slice = append(*slice, value)
 	}, processor)
 }
 
 // CollectMap is a specialized Collect call which fills a map using the incoming value as a key, mapped to the result
 func CollectMap[From comparable, To any](ctx context.Context, executorName string, values iter.Seq[From], result map[From]To, processor func(context.Context, From) (To, error)) error {
-	return Collect(ctx, executorName, values, func(ctx context.Context, key From, value To) {
+	return Collect(ctx, executorName, values, func(_ context.Context, key From, value To) {
 		result[key] = value
 	}, processor)
 }

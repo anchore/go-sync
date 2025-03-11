@@ -10,10 +10,6 @@ func (u sequentialExecutor) Name() string {
 	return u.name
 }
 
-func (u sequentialExecutor) ChildExecutor() Executor {
-	return u // safe for all children to use this executor
-}
-
 func (u sequentialExecutor) Execute(ctx context.Context, fn func(context.Context)) {
 	fn(ctx)
 }

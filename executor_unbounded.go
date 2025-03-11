@@ -6,11 +6,12 @@ import (
 )
 
 type unboundedExecutor struct {
-	wg sync.WaitGroup
+	name string
+	wg   sync.WaitGroup
 }
 
-func (u *unboundedExecutor) ChildExecutor() Executor {
-	return u // safe for all children to use this executor
+func (u *unboundedExecutor) Name() string {
+	return u.name
 }
 
 func (u *unboundedExecutor) Execute(ctx context.Context, f func(context.Context)) {

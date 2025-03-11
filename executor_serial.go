@@ -2,7 +2,13 @@ package sync
 
 import "context"
 
-type sequentialExecutor struct{}
+type sequentialExecutor struct {
+	name string
+}
+
+func (u sequentialExecutor) Name() string {
+	return u.name
+}
 
 func (u sequentialExecutor) ChildExecutor() Executor {
 	return u // safe for all children to use this executor

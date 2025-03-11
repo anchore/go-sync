@@ -15,10 +15,10 @@ type parallelWriter struct {
 
 // ParallelWriter returns a writer that writes the contents of each write call in parallel
 // to all provided writers
-func ParallelWriter(ctx *context.Context, executorName string, writers ...io.Writer) io.Writer {
+func ParallelWriter(ctx context.Context, executorName string, writers ...io.Writer) io.Writer {
 	executor := GetExecutor(ctx, executorName)
 	return &parallelWriter{
-		ctx:      *ctx,
+		ctx:      ctx,
 		executor: executor,
 		writers:  writers,
 	}

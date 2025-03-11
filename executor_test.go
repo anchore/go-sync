@@ -45,7 +45,7 @@ func Test_Executor(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			e := NewExecutor(test.maxConcurrency)
+			e := NewExecutor("", test.maxConcurrency)
 
 			executed := atomic.Int32{}
 			concurrency := stats.Tracked[int]{}
@@ -91,7 +91,7 @@ func Test_Executor2(t *testing.T) {
 
 	var expected []int
 
-	e := NewExecutor(concurrency)
+	e := NewExecutor("", concurrency)
 	for i := 0; i < count; i++ {
 		expected = append(expected, i)
 		e.Execute(context.TODO(), makeFunc(i))
@@ -132,7 +132,7 @@ func Test_executorSmall(t *testing.T) {
 		}
 	}
 
-	e := NewExecutor(concurrency)
+	e := NewExecutor("", concurrency)
 	for i := 0; i < count; i++ {
 		e.Execute(context.TODO(), makeFunc(i))
 	}
@@ -155,7 +155,7 @@ func Test_executorSmall(t *testing.T) {
 func Test_explicitExecutorLimiting(t *testing.T) {
 	// this test sets up specific wait groups to ensure that the maximum concurrency is honored
 	// by stepping through and holding specific locks while conditions are verified
-	e := NewExecutor(2)
+	e := NewExecutor("", 2)
 
 	wg1 := &sync.WaitGroup{}
 	wg1.Add(1)

@@ -14,7 +14,7 @@ func Collect[From, To any](ctx context.Context, executorName string, values iter
 	var errs []error
 	var lock sync.Mutex
 	var wg sync.WaitGroup
-	executor := GetExecutor(&ctx, executorName)
+	executor := GetExecutor(ctx, executorName)
 	for value := range values {
 		wg.Add(1)
 		executor.Execute(ctx, func(ctx context.Context) {

@@ -14,12 +14,12 @@ import (
 func Test_ReduceCollectSlice(t *testing.T) {
 	const count = 1000
 	const maxConcurrency = 5
-	e := NewExecutor(maxConcurrency)
+	e := NewExecutor("", maxConcurrency)
 
 	concurrency := stats.Tracked[int]{}
 
 	var values []int
-	ctx := SetContextExecutor(context.TODO(), "", e)
+	ctx := SetContextExecutor(context.TODO(), e)
 	err := CollectSlice(ctx, "", countIter(count), &values, func(ctx context.Context, i int) (int, error) {
 		defer concurrency.Incr()()
 
@@ -40,12 +40,12 @@ func Test_ReduceCollectSlice(t *testing.T) {
 func Test_ReduceCollectMap(t *testing.T) {
 	const count = 1000
 	const maxConcurrency = 5
-	e := NewExecutor(maxConcurrency)
+	e := NewExecutor("", maxConcurrency)
 
 	concurrency := stats.Tracked[int]{}
 
 	values := map[int]int{}
-	ctx := SetContextExecutor(context.TODO(), "", e)
+	ctx := SetContextExecutor(context.TODO(), e)
 	err := CollectMap(ctx, "", countIter(count), values, func(ctx context.Context, i int) (int, error) {
 		defer concurrency.Incr()()
 

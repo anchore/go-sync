@@ -12,6 +12,8 @@ type queuedExecutor struct {
 	executing      atomic.Int32
 	queue          List[*func()]
 	wg             sync.WaitGroup
+	childLock      sync.RWMutex
+	childExecutor  *errGroupExecutor
 }
 
 var _ Executor = (*queuedExecutor)(nil)
@@ -49,6 +51,22 @@ func (e *queuedExecutor) Wait(ctx context.Context) {
 
 	case <-done:
 	}
+}
+
+func (e *queuedExecutor) ChildExecutor() Executor {
+	e.childLock.RLock()
+	defer e.childLock.RUnlock()
+	if e.childExecutor == nil {
+		e.childLock.RUnlock()
+		e.childLock.Lock() // exclusive lock so we only create one child executor
+		if e.childExecutor == nil {
+			// create a child executor with the same bound
+			e.childExecutor = newErrGroupExecutor(e.maxConcurrency)
+		}
+		e.childLock.Unlock()
+		e.childLock.RLock() // needed for defer to unlock
+	}
+	return e.childExecutor
 }
 
 func (e *queuedExecutor) exec() {

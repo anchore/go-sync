@@ -76,7 +76,7 @@ func Test_ParallelWriter(t *testing.T) {
 
 			contents := "some complicated contents"
 
-			ctx := SetContextExecutor(context.TODO(), NewExecutor("", test.maxConcurrency))
+			ctx := SetContextExecutor(context.Background(), "", NewExecutor(test.maxConcurrency))
 			w := ParallelWriter(ctx, "", w1, w2, w3)
 
 			iterations := 0

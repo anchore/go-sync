@@ -3,27 +3,37 @@ package sync
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 )
 
 type unboundedExecutor struct {
-	name string
-	wg   sync.WaitGroup
+	canceled atomic.Bool
+	wg       sync.WaitGroup
 }
 
-func (u *unboundedExecutor) Name() string {
-	return u.name
-}
-
-func (u *unboundedExecutor) Execute(ctx context.Context, f func(context.Context)) {
-	u.wg.Add(1)
+func (e *unboundedExecutor) Execute(f func()) {
+	e.wg.Add(1)
 	go func() {
-		defer u.wg.Done()
-		f(ctx)
+		defer e.wg.Done()
+		if e.canceled.Load() {
+			return
+		}
+		f()
 	}()
 }
 
-func (u *unboundedExecutor) Wait() {
-	u.wg.Wait()
-}
+func (e *unboundedExecutor) Wait(ctx context.Context) {
+	e.canceled.Store(ctx.Err() != nil)
 
-var _ Executor = (*unboundedExecutor)(nil)
+	done := make(chan struct{}, 1)
+	go func() {
+		e.wg.Wait()
+		done <- struct{}{}
+	}()
+
+	select {
+	case <-ctx.Done():
+		e.canceled.Store(true)
+	case <-done:
+	}
+}

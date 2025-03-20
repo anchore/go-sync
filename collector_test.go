@@ -3,6 +3,7 @@ package sync
 import (
 	"context"
 	"iter"
+	"sync"
 	"testing"
 	"time"
 
@@ -11,16 +12,53 @@ import (
 	"github.com/anchore/go-sync/internal/stats"
 )
 
-func Test_ReduceCollectSlice(t *testing.T) {
+func Test_CollectCancelRepeat(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		Test_CollectCancel(t)
+	}
+}
+
+func Test_CollectCancel(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.TODO())
+	e := &errGroupExecutor{} // use errgroup executor as it will block before executing 3
+	e.g.SetLimit(2)
+	ctx = SetContextExecutor(ctx, "", e)
+
+	executed3 := false
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	err := Collect(&ctx, "", ToSeq([]int{1, 2, 3}), func(i int, s string) {}, func(i int) (string, error) {
+		switch i {
+		case 1:
+			// cancel
+			cancel()
+			// ensure 2 doesn't block
+			wg.Done()
+		case 2:
+			// ensure only 1 and 2 execute by waiting here
+			wg.Wait()
+		case 3:
+			executed3 = true
+		}
+		return "", nil
+	})
+
+	// should not have an error, even though context was canceled
+	require.NoError(t, err)
+
+	// should not have executed 3
+	require.False(t, executed3)
+}
+
+func Test_CollectSlice(t *testing.T) {
 	const count = 1000
 	const maxConcurrency = 5
-	e := NewExecutor("", maxConcurrency)
 
 	concurrency := stats.Tracked[int]{}
 
 	var values []int
-	ctx := SetContextExecutor(context.TODO(), e)
-	err := CollectSlice(ctx, "", countIter(count), &values, func(ctx context.Context, i int) (int, error) {
+	ctx := SetContextExecutor(context.Background(), "", NewExecutor(maxConcurrency))
+	err := CollectSlice(&ctx, "", countIter(count), &values, func(i int) (int, error) {
 		defer concurrency.Incr()()
 
 		time.Sleep(1 * time.Millisecond)
@@ -37,16 +75,15 @@ func Test_ReduceCollectSlice(t *testing.T) {
 	require.LessOrEqual(t, concurrency.Max(), maxConcurrency)
 }
 
-func Test_ReduceCollectMap(t *testing.T) {
+func Test_CollectMap(t *testing.T) {
 	const count = 1000
 	const maxConcurrency = 5
-	e := NewExecutor("", maxConcurrency)
 
 	concurrency := stats.Tracked[int]{}
 
 	values := map[int]int{}
-	ctx := SetContextExecutor(context.TODO(), e)
-	err := CollectMap(ctx, "", countIter(count), values, func(ctx context.Context, i int) (int, error) {
+	ctx := SetContextExecutor(context.Background(), "", NewExecutor(maxConcurrency))
+	err := CollectMap(&ctx, "", countIter(count), values, func(i int) (int, error) {
 		defer concurrency.Incr()()
 
 		time.Sleep(1 * time.Millisecond)

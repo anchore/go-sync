@@ -16,7 +16,7 @@ type parallelWriter struct {
 // ParallelWriter returns a writer that writes the contents of each write call in parallel
 // to all provided writers
 func ParallelWriter(ctx context.Context, executorName string, writers ...io.Writer) io.Writer {
-	executor := GetExecutor(ctx, executorName)
+	executor := ContextExecutor(&ctx, executorName)
 	return &parallelWriter{
 		ctx:      ctx,
 		executor: executor,
@@ -29,7 +29,7 @@ func (w *parallelWriter) Write(p []byte) (int, error) {
 	wg := sync.WaitGroup{}
 	wg.Add(len(w.writers))
 	for _, writer := range w.writers {
-		w.executor.Execute(w.ctx, func(_ context.Context) {
+		w.executor.Execute(func() {
 			defer wg.Done()
 			_, err := writer.Write(p)
 			if err != nil {

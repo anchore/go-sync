@@ -2,13 +2,12 @@ package sync
 
 import (
 	"context"
-	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/anchore/go-sync/internal/atomic"
 	"github.com/anchore/go-sync/internal/stats"
 )
 
@@ -26,8 +25,12 @@ func Test_Executor(t *testing.T) {
 		maxConcurrency int
 	}{
 		{
-			name:           "unbounded concurrency",
+			name:           "sequential",
 			maxConcurrency: 0,
+		},
+		{
+			name:           "unbounded concurrency",
+			maxConcurrency: -1,
 		},
 		{
 			name:           "single execution",
@@ -44,165 +47,32 @@ func Test_Executor(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			e := NewExecutor("", test.maxConcurrency)
+		for _, errGroup := range []bool{false, true} {
+			t.Run(test.name, func(t *testing.T) {
 
-			executed := atomic.Int32{}
-			concurrency := stats.Tracked[int]{}
+				useErrGroup = errGroup
+				e := NewExecutor(test.maxConcurrency)
 
-			for i := 0; i < count; i++ {
-				e.Execute(context.TODO(), func(ctx context.Context) {
-					defer concurrency.Incr()()
-					executed.Add(1)
-					time.Sleep(10 * time.Nanosecond)
-				})
-			}
+				executed := atomic.Int32{}
+				concurrency := stats.Tracked[int]{}
 
-			e.Wait()
+				for i := 0; i < count; i++ {
+					e.Execute(func() {
+						defer concurrency.Incr()()
+						executed.Add(1)
+						time.Sleep(10 * time.Nanosecond)
+					})
+				}
 
-			require.Equal(t, count, int(executed.Load()))
-			if test.maxConcurrency > 0 {
-				require.LessOrEqual(t, concurrency.Max(), test.maxConcurrency)
-			} else {
-				require.GreaterOrEqual(t, concurrency.Max(), 1)
-			}
-		})
-	}
-}
+				e.Wait(context.Background())
 
-func Test_Executor2(t *testing.T) {
-	concurrency := 25
-	count := 1000
-
-	wgs := make([]sync.WaitGroup, count)
-
-	concurrent := stats.Tracked[int64]{}
-	total := atomic.Uint64{}
-
-	makeFunc := func(idx int) func(context.Context) {
-		wgs[idx].Add(1)
-		return func(_ context.Context) {
-			defer total.Add(1)
-			concurrent.Incr()
-			wgs[idx].Wait()
-			concurrent.Decr()
+				require.Equal(t, count, int(executed.Load()))
+				if test.maxConcurrency > 0 {
+					require.LessOrEqual(t, concurrency.Max(), test.maxConcurrency)
+				} else {
+					require.GreaterOrEqual(t, concurrency.Max(), 1)
+				}
+			})
 		}
 	}
-
-	var expected []int
-
-	e := NewExecutor("", concurrency)
-	for i := 0; i < count; i++ {
-		expected = append(expected, i)
-		e.Execute(context.TODO(), makeFunc(i))
-	}
-
-	go func() {
-		for i := 0; i < count; i++ {
-			wgs[i].Done()
-		}
-	}()
-
-	e.Wait()
-	require.LessOrEqual(t, concurrent.Max(), int64(concurrency))
-	require.Equal(t, total.Load(), uint64(count))
-}
-
-func Test_executorSmall(t *testing.T) {
-	concurrency := 2
-	count := 4
-
-	wgs := make([]sync.WaitGroup, count)
-	waiting := sync.WaitGroup{}
-	waiting.Add(int(concurrency))
-
-	concurrent := stats.Tracked[int]{}
-	total := atomic.Uint64{}
-
-	makeFunc := func(idx int) func(context.Context) {
-		wgs[idx].Add(1)
-		return func(_ context.Context) {
-			if idx < int(concurrency) {
-				waiting.Done()
-			}
-			defer total.Add(1)
-			concurrent.Incr()
-			wgs[idx].Wait()
-			concurrent.Decr()
-		}
-	}
-
-	e := NewExecutor("", concurrency)
-	for i := 0; i < count; i++ {
-		e.Execute(context.TODO(), makeFunc(i))
-	}
-
-	time.Sleep(10 * time.Millisecond)
-	waiting.Wait()
-	require.Equal(t, 2, concurrent.Val())
-
-	go func() {
-		for i := 0; i < count; i++ {
-			wgs[i].Done()
-		}
-	}()
-
-	e.Wait()
-	require.LessOrEqual(t, concurrent.Max(), concurrency)
-	require.Equal(t, total.Load(), uint64(count))
-}
-
-func Test_explicitExecutorLimiting(t *testing.T) {
-	// this test sets up specific wait groups to ensure that the maximum concurrency is honored
-	// by stepping through and holding specific locks while conditions are verified
-	e := NewExecutor("", 2)
-
-	wg1 := &sync.WaitGroup{}
-	wg1.Add(1)
-	wg2 := &sync.WaitGroup{}
-	wg2.Add(1)
-	wg3 := &sync.WaitGroup{}
-	wg3.Add(1)
-
-	order := List[string]{}
-	executed := ""
-
-	wgReady := &sync.WaitGroup{}
-	wgReady.Add(2)
-
-	e.Execute(context.TODO(), func(_ context.Context) {
-		order.Append("pre wg1")
-		wgReady.Done()
-		wg1.Wait()
-		order.Append("post wg1")
-		executed += "1_"
-	})
-
-	e.Execute(context.TODO(), func(_ context.Context) {
-		order.Append("pre wg2")
-		wgReady.Done()
-		wg2.Wait()
-		order.Append("post wg2")
-		executed += "2_"
-		wg3.Done()
-	})
-
-	wgReady.Wait()
-
-	e.Execute(context.TODO(), func(_ context.Context) {
-		order.Append("pre wg3")
-		wg3.Wait()
-		order.Append("post wg3")
-		executed += "3_"
-		wg1.Done()
-	})
-
-	wg2.Done()
-
-	e.Wait()
-	require.Equal(t, "2_3_1_", executed)
-	require.True(t,
-		order.indexOf("post wg2") < order.indexOf("post wg3") &&
-			order.indexOf("post wg3") < order.indexOf("post wg1"),
-	)
 }

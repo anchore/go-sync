@@ -39,16 +39,15 @@ func (e *queuedExecutor) Execute(f func()) {
 func (e *queuedExecutor) Wait(ctx context.Context) {
 	e.canceled.Store(ctx.Err() != nil)
 
-	done := make(chan struct{}, 1)
+	done := make(chan struct{})
 	go func() {
 		e.wg.Wait()
-		done <- struct{}{}
+		close(done)
 	}()
 
 	select {
 	case <-ctx.Done():
 		e.canceled.Store(true)
-
 	case <-done:
 	}
 }

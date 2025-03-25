@@ -151,7 +151,9 @@ func Test_explicitExecutorLimiting(t *testing.T) {
 }
 
 func Test_queuedExecutorCancelRepeat(t *testing.T) {
-	for i := 0; i < 100; i++ {
+	// iterating these tests many times tends to make problems apparent much more quickly,
+	// when they may succeed under certain conditions
+	for i := 0; i < 1000; i++ {
 		Test_queuedExecutorCancel(t)
 	}
 }

@@ -8,9 +8,15 @@ import (
 )
 
 // Collect iterates over the provided values, executing the processor in parallel to map each incoming value to a result.
-// The collector is used to apply the results, with an exclusive lock; collector will never execute in parallel.
+// The accumulator is used to apply the results, with an exclusive lock; accumulator will never execute in parallel.
 // All errors returned from processor functions will be joined with errors.Join as the returned error.
-func Collect[From, To any](ctx *context.Context, executorName string, values iter.Seq[From], collector func(From, To), processor func(From) (To, error)) error {
+func Collect[From, To any](ctx *context.Context, executorName string, values iter.Seq[From], processor func(From) (To, error), accumulator func(From, To)) error {
+	if processor == nil {
+		panic("no processor provided to Collect")
+	}
+	if ctx == nil || *ctx == nil {
+		ctx = emptyContextPtr
+	}
 	var errs []error
 	var lock sync.Mutex
 	var wg sync.WaitGroup
@@ -33,16 +39,16 @@ func Collect[From, To any](ctx *context.Context, executorName string, values ite
 			if err != nil {
 				errs = append(errs, err)
 			}
-			if collector != nil {
-				collector(value, result)
+			if accumulator != nil {
+				accumulator(value, result)
 			}
 		})
 	}
 
-	done := make(chan struct{}, 1)
+	done := make(chan struct{})
 	go func() {
 		wg.Wait()
-		done <- struct{}{}
+		close(done)
 	}()
 
 	select {
@@ -54,17 +60,17 @@ func Collect[From, To any](ctx *context.Context, executorName string, values ite
 }
 
 // CollectSlice is a specialized Collect call which appends results to a slice
-func CollectSlice[From, To any](ctx *context.Context, executorName string, values iter.Seq[From], slice *[]To, processor func(From) (To, error)) error {
-	return Collect(ctx, executorName, values, func(_ From, value To) {
+func CollectSlice[From, To any](ctx *context.Context, executorName string, values iter.Seq[From], processor func(From) (To, error), slice *[]To) error {
+	return Collect(ctx, executorName, values, processor, func(_ From, value To) {
 		*slice = append(*slice, value)
-	}, processor)
+	})
 }
 
 // CollectMap is a specialized Collect call which fills a map using the incoming value as a key, mapped to the result
-func CollectMap[From comparable, To any](ctx *context.Context, executorName string, values iter.Seq[From], result map[From]To, processor func(From) (To, error)) error {
-	return Collect(ctx, executorName, values, func(key From, value To) {
+func CollectMap[From comparable, To any](ctx *context.Context, executorName string, values iter.Seq[From], processor func(From) (To, error), result map[From]To) error {
+	return Collect(ctx, executorName, values, processor, func(key From, value To) {
 		result[key] = value
-	}, processor)
+	})
 }
 
 // ToSeq converts a slice to an iter.Seq

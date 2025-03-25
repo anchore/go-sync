@@ -16,7 +16,7 @@ func HasContextExecutor(ctx context.Context, name string) bool {
 // ContextExecutor returns an executor in context with the given name, or a serial executor if none exists
 // and replaces the context with one that contains a new executor which won't deadlock if the context
 func ContextExecutor(ctx *context.Context, name string) Executor {
-	if ctx == nil {
+	if ctx == nil || *ctx == nil {
 		return serialExecutor{}
 	}
 	executor, ok := (*ctx).Value(executorKey{name: name}).(Executor)
@@ -33,3 +33,6 @@ func ContextExecutor(ctx *context.Context, name string) Executor {
 func SetContextExecutor(ctx context.Context, name string, executor Executor) context.Context {
 	return context.WithValue(ctx, executorKey{name: name}, executor)
 }
+
+var emptyContext = context.TODO()
+var emptyContextPtr = &emptyContext

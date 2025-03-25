@@ -13,6 +13,8 @@ import (
 )
 
 func Test_CollectCancelRepeat(t *testing.T) {
+	// iterating these tests many times tends to make problems apparent much more quickly,
+	// when they may succeed under certain conditions
 	for i := 0; i < 1000; i++ {
 		Test_CollectCancel(t)
 	}
@@ -27,7 +29,7 @@ func Test_CollectCancel(t *testing.T) {
 	executed3 := false
 	wg := sync.WaitGroup{}
 	wg.Add(1)
-	err := Collect(&ctx, "", ToSeq([]int{1, 2, 3}), func(i int, s string) {}, func(i int) (string, error) {
+	err := Collect(&ctx, "", ToSeq([]int{1, 2, 3}), func(i int) (string, error) {
 		switch i {
 		case 1:
 			// cancel
@@ -41,7 +43,7 @@ func Test_CollectCancel(t *testing.T) {
 			executed3 = true
 		}
 		return "", nil
-	})
+	}, func(i int, s string) {})
 
 	// should not have an error, even though context was canceled
 	require.NoError(t, err)
@@ -58,13 +60,13 @@ func Test_CollectSlice(t *testing.T) {
 
 	var values []int
 	ctx := SetContextExecutor(context.Background(), "", NewExecutor(maxConcurrency))
-	err := CollectSlice(&ctx, "", countIter(count), &values, func(i int) (int, error) {
+	err := CollectSlice(&ctx, "", countIter(count), func(i int) (int, error) {
 		defer concurrency.Incr()()
 
 		time.Sleep(1 * time.Millisecond)
 
 		return i * 10, nil
-	})
+	}, &values)
 	require.NoError(t, err)
 
 	require.Len(t, values, count)
@@ -83,13 +85,13 @@ func Test_CollectMap(t *testing.T) {
 
 	values := map[int]int{}
 	ctx := SetContextExecutor(context.Background(), "", NewExecutor(maxConcurrency))
-	err := CollectMap(&ctx, "", countIter(count), values, func(i int) (int, error) {
+	err := CollectMap(&ctx, "", countIter(count), func(i int) (int, error) {
 		defer concurrency.Incr()()
 
 		time.Sleep(1 * time.Millisecond)
 
 		return i * 10, nil
-	})
+	}, values)
 	require.NoError(t, err)
 
 	require.Len(t, values, count)

@@ -9,6 +9,8 @@ import (
 )
 
 func Test_errGroupExecutorRepeated(t *testing.T) {
+	// iterating these tests many times tends to make problems apparent much more quickly,
+	// when they may succeed under certain conditions
 	for i := 0; i < 1000; i++ {
 		Test_errGroupExecutor(t)
 	}

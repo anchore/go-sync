@@ -14,7 +14,7 @@ func HasContextExecutor(ctx context.Context, name string) bool {
 }
 
 // ContextExecutor returns an executor in context with the given name, or a serial executor if none exists
-// and replaces the context with one that contains a new executor which won't deadlock if the context
+// and replaces the context with one that contains a new executor which won't deadlock
 func ContextExecutor(ctx *context.Context, name string) Executor {
 	if ctx == nil || *ctx == nil {
 		return serialExecutor{}

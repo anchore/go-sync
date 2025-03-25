@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 )
 
+// queuedExecutor is an Executor that accepts units of work to execute asynchronously, queuing them rather than blocking
 type queuedExecutor struct {
 	canceled       atomic.Bool
 	maxConcurrency int
@@ -54,16 +55,16 @@ func (e *queuedExecutor) Wait(ctx context.Context) {
 
 func (e *queuedExecutor) ChildExecutor() Executor {
 	e.childLock.RLock()
-	defer e.childLock.RUnlock()
+	child := e.childExecutor
+	e.childLock.RUnlock()
+	if child != nil {
+		return child
+	}
+	e.childLock.Lock()
+	defer e.childLock.Unlock()
 	if e.childExecutor == nil {
-		e.childLock.RUnlock()
-		e.childLock.Lock() // exclusive lock so we only create one child executor
-		if e.childExecutor == nil {
-			// create a child executor with the same bound
-			e.childExecutor = newErrGroupExecutor(e.maxConcurrency)
-		}
-		e.childLock.Unlock()
-		e.childLock.RLock() // needed for defer to unlock
+		// create child executor with same bound
+		e.childExecutor = newErrGroupExecutor(e.maxConcurrency)
 	}
 	return e.childExecutor
 }

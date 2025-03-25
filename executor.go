@@ -17,8 +17,8 @@ type Executor interface {
 	Wait(context.Context)
 }
 
-// ChildExecutor interface, if implemented, will cause GetContextExecutor calls to replace the provided context
-// with a child executor returned from this function. This is used when it is not safe to nest Execute calls
+// ChildExecutor interface, if implemented, will cause ContextExecutor calls to replace the provided context with one
+// containing a child executor returned from this function. This is used when it is not safe to nest Execute calls
 type ChildExecutor interface {
 	ChildExecutor() Executor
 }

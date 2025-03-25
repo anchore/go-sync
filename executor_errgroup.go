@@ -8,6 +8,8 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// errGroupExecutor is an Executor that executes units of work, blocking when Execute is called once the maxConcurrency
+// is reached, only continuing subsequent Execute calls when the nuber of executing functions drops below maxConcurrency
 type errGroupExecutor struct {
 	maxConcurrency int
 	canceled       atomic.Bool
@@ -57,16 +59,16 @@ func (e *errGroupExecutor) Wait(ctx context.Context) {
 
 func (e *errGroupExecutor) ChildExecutor() Executor {
 	e.childLock.RLock()
-	defer e.childLock.RUnlock()
+	child := e.childExecutor
+	e.childLock.RUnlock()
+	if child != nil {
+		return child
+	}
+	e.childLock.Lock()
+	defer e.childLock.Unlock()
 	if e.childExecutor == nil {
-		e.childLock.RUnlock()
-		e.childLock.Lock() // exclusive lock so we only create one child executor
-		if e.childExecutor == nil {
-			// create a child executor with the same bound
-			e.childExecutor = newErrGroupExecutor(e.maxConcurrency)
-		}
-		e.childLock.Unlock()
-		e.childLock.RLock() // needed for defer to unlock
+		// create child executor with same bound
+		e.childExecutor = newErrGroupExecutor(e.maxConcurrency)
 	}
 	return e.childExecutor
 }

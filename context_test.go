@@ -40,7 +40,7 @@ func Test_ContextExecutor(t *testing.T) {
 		require.IsType(t, serialExecutor{}, result)
 	})
 
-	t.Run("WitDifferentExecutorInContext", func(t *testing.T) {
+	t.Run("WithDifferentExecutorInContext", func(t *testing.T) {
 		ctx := SetContextExecutor(context.Background(), "io", &unboundedExecutor{})
 
 		result := ContextExecutor(&ctx, "cpu")

@@ -7,10 +7,10 @@ import (
 	"sync"
 )
 
-// Collect iterates over the provided values, executing the processor in parallel to map each incoming value to a result.
+// Collect iterates over the provided iterator, executing the processor in parallel to map each incoming value to a result.
 // The accumulator is used to apply the results, with an exclusive lock; accumulator will never execute in parallel.
 // All errors returned from processor functions will be joined with errors.Join as the returned error.
-func Collect[From, To any](ctx *context.Context, executorName string, values iter.Seq[From], processor func(From) (To, error), accumulator func(From, To)) error {
+func Collect[From, To any](ctx *context.Context, executorName string, iterator iter.Seq[From], processor func(From) (To, error), accumulator func(From, To)) error {
 	if processor == nil {
 		panic("no processor provided to Collect")
 	}
@@ -21,7 +21,7 @@ func Collect[From, To any](ctx *context.Context, executorName string, values ite
 	var lock sync.Mutex
 	var wg sync.WaitGroup
 	executor := ContextExecutor(ctx, executorName)
-	for value := range values {
+	for i := range iterator {
 		// skip queuing any more values
 		if (*ctx).Err() != nil {
 			break
@@ -33,14 +33,14 @@ func Collect[From, To any](ctx *context.Context, executorName string, values ite
 			if (*ctx).Err() != nil {
 				return
 			}
-			result, err := processor(value)
+			result, err := processor(i)
 			lock.Lock()
 			defer lock.Unlock()
 			if err != nil {
 				errs = append(errs, err)
 			}
 			if accumulator != nil {
-				accumulator(value, result)
+				accumulator(i, result)
 			}
 		})
 	}

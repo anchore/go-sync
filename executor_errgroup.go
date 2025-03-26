@@ -8,8 +8,8 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// errGroupExecutor is an Executor that executes units of work, blocking when Execute is called once the maxConcurrency
-// is reached, only continuing subsequent Execute calls when the nuber of executing functions drops below maxConcurrency
+// errGroupExecutor is an Executor that executes units of work, blocking when Go is called once the maxConcurrency
+// is reached, only continuing subsequent Go calls when the nuber of executing functions drops below maxConcurrency
 type errGroupExecutor struct {
 	maxConcurrency int
 	canceled       atomic.Bool

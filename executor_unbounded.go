@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 )
 
-// unboundedExecutor executes all Execute calls without any specific bound
+// unboundedExecutor executes all Go calls without any specific bound
 type unboundedExecutor struct {
 	canceled atomic.Bool
 	wg       sync.WaitGroup

@@ -49,15 +49,18 @@ func Test_Executor(t *testing.T) {
 	for _, test := range tests {
 		for _, errGroup := range []bool{false, true} {
 			t.Run(test.name, func(t *testing.T) {
-
-				useErrGroup = errGroup
 				e := NewExecutor(test.maxConcurrency)
+				if !errGroup && test.maxConcurrency > 1 {
+					e = &queuedExecutor{
+						maxConcurrency: test.maxConcurrency,
+					}
+				}
 
 				executed := atomic.Int32{}
 				concurrency := stats.Tracked[int]{}
 
 				for i := 0; i < count; i++ {
-					e.Execute(func() {
+					e.Go(func() {
 						defer concurrency.Incr()()
 						executed.Add(1)
 						time.Sleep(10 * time.Nanosecond)

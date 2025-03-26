@@ -11,11 +11,11 @@ func Test_serialSubcontext(t *testing.T) {
 	wg.Add(1)
 	ctx := context.TODO()
 	ctx = SetContextExecutor(ctx, "", serialExecutor{})
-	ContextExecutor(&ctx, "").Execute(func() {
+	ContextExecutor(&ctx, "").Go(func() {
 		// context should be able to continue
-		ContextExecutor(&ctx, "").Execute(func() {
+		ContextExecutor(&ctx, "").Go(func() {
 			// context should be able to continue
-			ContextExecutor(&ctx, "").Execute(func() {
+			ContextExecutor(&ctx, "").Go(func() {
 				wg.Done()
 			})
 		})

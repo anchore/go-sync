@@ -11,11 +11,11 @@ func Test_unboundedSubcontext(t *testing.T) {
 	wg.Add(1)
 	ctx := context.TODO()
 	ctx = SetContextExecutor(ctx, "", &unboundedExecutor{})
-	ContextExecutor(&ctx, "").Execute(func() {
+	ContextExecutor(&ctx, "").Go(func() {
 		// context should be able to continue
-		ContextExecutor(&ctx, "").Execute(func() {
+		ContextExecutor(&ctx, "").Go(func() {
 			// context should be able to continue
-			ContextExecutor(&ctx, "").Execute(func() {
+			ContextExecutor(&ctx, "").Go(func() {
 				wg.Done()
 			})
 		})

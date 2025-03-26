@@ -27,7 +27,7 @@ func newErrGroupExecutor(maxConcurrency int) *errGroupExecutor {
 	return e
 }
 
-func (e *errGroupExecutor) Execute(f func()) {
+func (e *errGroupExecutor) Go(f func()) {
 	e.wg.Add(1)
 	fn := func() error {
 		defer e.wg.Done()

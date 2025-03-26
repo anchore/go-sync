@@ -27,7 +27,7 @@ func Collect[From, To any](ctx *context.Context, executorName string, iterator i
 			break
 		}
 		wg.Add(1)
-		executor.Execute(func() {
+		executor.Go(func() {
 			defer wg.Done()
 			// we may have queued many functions when canceled
 			if (*ctx).Err() != nil {

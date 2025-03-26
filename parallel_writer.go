@@ -29,7 +29,7 @@ func (w *parallelWriter) Write(p []byte) (int, error) {
 	wg := sync.WaitGroup{}
 	wg.Add(len(w.writers))
 	for _, writer := range w.writers {
-		w.executor.Execute(func() {
+		w.executor.Go(func() {
 			defer wg.Done()
 			_, err := writer.Write(p)
 			if err != nil {

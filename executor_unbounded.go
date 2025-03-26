@@ -12,7 +12,7 @@ type unboundedExecutor struct {
 	wg       sync.WaitGroup
 }
 
-func (e *unboundedExecutor) Execute(f func()) {
+func (e *unboundedExecutor) Go(f func()) {
 	e.wg.Add(1)
 	go func() {
 		defer e.wg.Done()

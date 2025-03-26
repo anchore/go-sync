@@ -35,7 +35,7 @@ func Test_errGroupExecutor(t *testing.T) {
 	wgReady := &sync.WaitGroup{}
 	wgReady.Add(2)
 
-	e.Execute(func() {
+	e.Go(func() {
 		order.Append("pre wg1")
 		wgReady.Done()
 		wg1.Wait()
@@ -44,7 +44,7 @@ func Test_errGroupExecutor(t *testing.T) {
 		wg3.Done()
 	})
 
-	e.Execute(func() {
+	e.Go(func() {
 		order.Append("pre wg2")
 		wgReady.Done()
 		wg2.Wait()
@@ -54,10 +54,10 @@ func Test_errGroupExecutor(t *testing.T) {
 
 	wgReady.Wait()
 
-	// errgroup execution is blocking, so the next e.Execute will block, so continue on the first before we deadlock
+	// errgroup execution is blocking, so the next e.Go will block, so continue on the first before we deadlock
 	wg1.Done()
 
-	e.Execute(func() {
+	e.Go(func() {
 		order.Append("pre wg3")
 		wg3.Wait()
 		order.Append("post wg3")
@@ -92,14 +92,14 @@ func Test_errGroupExecutorCancel(t *testing.T) {
 	}
 
 	executed := [3]bool{}
-	e.Execute(func() {
+	e.Go(func() {
 		t.Logf("waiting 0")
 		wns[0].Done()
 		wgs[0].Wait()
 		t.Logf("done 0")
 		executed[0] = true
 	})
-	e.Execute(func() {
+	e.Go(func() {
 		t.Logf("waiting 1")
 		wns[1].Done()
 		wgs[1].Wait()
@@ -116,7 +116,7 @@ func Test_errGroupExecutorCancel(t *testing.T) {
 
 		wns[2].Wait()
 
-		e.Execute(func() {
+		e.Go(func() {
 			t.Logf("waiting 2")
 			wgs[2].Wait()
 			t.Logf("done 2")
@@ -143,11 +143,11 @@ func Test_errGroupExecutorSubcontext(t *testing.T) {
 	wg.Add(1)
 	ctx := context.TODO()
 	ctx = SetContextExecutor(ctx, "", newErrGroupExecutor(1))
-	ContextExecutor(&ctx, "").Execute(func() {
+	ContextExecutor(&ctx, "").Go(func() {
 		// context should be replaced with a secondary executor
-		ContextExecutor(&ctx, "").Execute(func() {
+		ContextExecutor(&ctx, "").Go(func() {
 			// context should be replaced again with a tertiary executor
-			ContextExecutor(&ctx, "").Execute(func() {
+			ContextExecutor(&ctx, "").Go(func() {
 				wg.Done()
 			})
 		})

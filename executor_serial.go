@@ -5,7 +5,7 @@ import "context"
 // serialExecutor is an Executor that executes serially, without any goroutines
 type serialExecutor struct{}
 
-func (u serialExecutor) Execute(fn func()) {
+func (u serialExecutor) Go(fn func()) {
 	fn()
 }
 

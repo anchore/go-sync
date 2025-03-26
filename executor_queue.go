@@ -19,7 +19,7 @@ type queuedExecutor struct {
 
 var _ Executor = (*queuedExecutor)(nil)
 
-func (e *queuedExecutor) Execute(f func()) {
+func (e *queuedExecutor) Go(f func()) {
 	if e.canceled.Load() {
 		return
 	}

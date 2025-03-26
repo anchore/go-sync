@@ -8,7 +8,7 @@ func Tee[T any](in chan T, receivers ...func(events chan T)) (writer chan T, add
 	clones := sync.List[chan T]{}
 	add = func(receiver func(events chan T)) (remove func()) {
 		clone := make(chan T)
-		clones.Add(clone)
+		clones.Append(clone)
 		go receiver(clone)
 		return func() {
 			clones.Remove(clone)
@@ -19,18 +19,19 @@ func Tee[T any](in chan T, receivers ...func(events chan T)) (writer chan T, add
 		_ = add(receiver)
 	}
 	go func() {
-		defer clones.Each(func(clone chan T) {
-			close(clone)
-		})
+		defer func() {
+			for clone := range clones.Seq {
+				close(clone)
+			}
+		}()
 		for val := range in {
 			go func(val T) {
 				defer func() {
 					_ = recover()
 				}()
-				defer clones.RLock()()
-				clones.Each(func(clone chan T) {
+				for clone := range clones.Seq {
 					clone <- val
-				})
+				}
 			}(val)
 		}
 	}()

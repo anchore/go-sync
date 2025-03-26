@@ -26,7 +26,7 @@ func Test_ChannelTee(t *testing.T) {
 				case event, open := <-events:
 					if event != nil {
 						// t.Logf("%d: %v", number, event)
-						received.Add(number)
+						received.Append(number)
 						wg.Done()
 					}
 					if !open {
@@ -54,7 +54,7 @@ func Test_ChannelTee(t *testing.T) {
 	}()
 	wg.Wait()
 
-	require.ElementsMatch(t, collect(received), arr(1, 2, 3, 4, 5, 6, 7))
+	require.ElementsMatch(t, received.Values(), []int{1, 2, 3, 4, 5, 6, 7})
 
 	remove5()
 	received.Clear()
@@ -65,7 +65,7 @@ func Test_ChannelTee(t *testing.T) {
 	}()
 	wg.Wait()
 
-	require.ElementsMatch(t, collect(received), arr(1, 2, 3, 4, 6, 7))
+	require.ElementsMatch(t, received.Values(), []int{1, 2, 3, 4, 6, 7})
 
 	remove3()
 	received.Clear()
@@ -78,7 +78,7 @@ func Test_ChannelTee(t *testing.T) {
 
 	wg.Wait()
 
-	require.ElementsMatch(t, collect(received), arr(1, 2, 4, 6, 7))
+	require.ElementsMatch(t, received.Values(), []int{1, 2, 4, 6, 7})
 
 	remove7()
 	received.Clear()
@@ -90,22 +90,10 @@ func Test_ChannelTee(t *testing.T) {
 	}()
 
 	wg.Wait()
-	require.ElementsMatch(t, collect(received), arr(1, 2, 4, 6))
+	require.ElementsMatch(t, received.Values(), []int{1, 2, 4, 6})
 
 	closing.Store(true)
 	wg.Add(4)
 	close(events)
 	wg.Wait()
-}
-
-func collect(values gosync.Iterator[int]) []int {
-	var out []int
-	values.Each(func(value int) {
-		out = append(out, value)
-	})
-	return out
-}
-
-func arr[T any](values ...T) []T {
-	return values
 }

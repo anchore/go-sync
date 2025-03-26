@@ -1,5 +1,7 @@
 package sync
 
+import "iter"
+
 type List[T comparable] struct {
 	Locking
 	values []T
@@ -7,7 +9,7 @@ type List[T comparable] struct {
 
 // ----------------- Collection functions -----------------
 
-func (s *List[T]) Add(value T) {
+func (s *List[T]) Append(value T) {
 	defer s.Lock()()
 	s.values = append(s.values, value)
 }
@@ -33,7 +35,7 @@ func (s *List[T]) Len() int {
 // ----------------- Queue functions -----------------
 
 func (s *List[T]) Enqueue(value T) {
-	s.Add(value)
+	s.Append(value)
 }
 
 func (s *List[T]) Dequeue() (value T, ok bool) {
@@ -49,7 +51,7 @@ func (s *List[T]) Dequeue() (value T, ok bool) {
 // ----------------- Stack functions -----------------
 
 func (s *List[T]) Push(value T) {
-	s.Add(value)
+	s.Append(value)
 }
 
 func (s *List[T]) Pop() (value T, ok bool) {
@@ -74,32 +76,44 @@ func (s *List[T]) Peek() (value T, ok bool) {
 
 // ----------------- Iterator functions -----------------
 
-func (s *List[T]) Each(fn func(value T)) {
+// Seq is an iter.Seq compatible iterator function with a read lock, as such it is not possible to
+// modify this list during the loop -- use Values() to obtain a copy for those purposes
+func (s *List[T]) Seq(fn func(value T) bool) {
 	defer s.RLock()()
 	for _, v := range s.values {
-		fn(v)
+		if !fn(v) {
+			return
+		}
 	}
 }
 
 // ----------------- other utility functions -----------------
 
 // Values returns a slice containing all the values at the time of the call, this should be used
-// sparingly and is only a con
+// sparingly as it is only a snapshot of the current values
 func (s *List[T]) Values() []T {
 	defer s.RLock()()
-	return append([]T{}, s.values...)
+	return s.copyValues()
 }
 
+// copyValues creates a copy of the values and returns it, without any locking
+func (s *List[T]) copyValues() []T {
+	out := make([]T, len(s.values))
+	copy(out, s.values)
+	return out
+}
+
+// Clear removes all values
 func (s *List[T]) Clear() {
 	defer s.Lock()()
 	s.values = nil
 }
 
-func (s *List[T]) RemoveAll(values Iterator[T]) {
+func (s *List[T]) RemoveAll(values iter.Seq[T]) {
 	defer s.Lock()()
-	values.Each(func(value T) {
+	for value := range values {
 		s.Remove(value)
-	})
+	}
 }
 
 func (s *List[T]) Update(updater func(values []T) []T) {
@@ -107,7 +121,7 @@ func (s *List[T]) Update(updater func(values []T) []T) {
 	s.values = updater(s.values)
 }
 
-// removeIndex removes the index from the list, returns the value and true if an value was removed
+// removeIndex removes the index from the list, returns the value and true if a value was removed
 func (s *List[T]) removeIndex(index int) (value T, ok bool) {
 	last := len(s.values) - 1
 	if index < 0 || index > last {

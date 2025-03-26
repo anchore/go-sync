@@ -21,13 +21,13 @@ func (x *Float64) Store(val float64) {
 }
 
 // Swap atomically stores new into x and returns the previous value.
-func (x *Float64) Swap(new float64) (old float64) {
-	return math.Float64frombits(x.value.Swap(math.Float64bits(new)))
+func (x *Float64) Swap(newVal float64) (oldVal float64) {
+	return math.Float64frombits(x.value.Swap(math.Float64bits(newVal)))
 }
 
 // CompareAndSwap executes the compare-and-swap operation for x.
-func (x *Float64) CompareAndSwap(old, new float64) (swapped bool) {
-	return x.value.CompareAndSwap(math.Float64bits(old), math.Float64bits(new))
+func (x *Float64) CompareAndSwap(oldVal, newVal float64) (swapped bool) {
+	return x.value.CompareAndSwap(math.Float64bits(oldVal), math.Float64bits(newVal))
 }
 
 // Add atomically adds delta to x and returns the new value.

@@ -1,11 +1,15 @@
 package sync
 
-type sequentialExecutor struct{}
+import "context"
 
-func (u sequentialExecutor) Execute(fn func()) {
+// serialExecutor is an Executor that executes serially, without any goroutines
+type serialExecutor struct{}
+
+func (u serialExecutor) Go(fn func()) {
 	fn()
 }
 
-func (u sequentialExecutor) Wait() {}
+func (u serialExecutor) Wait(_ context.Context) {
+}
 
-var _ Executor = (*sequentialExecutor)(nil)
+var _ Executor = (*serialExecutor)(nil)

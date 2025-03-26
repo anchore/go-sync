@@ -1,12 +1,13 @@
 package sync
 
 import (
+	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/anchore/go-sync/internal/atomic"
 	"github.com/anchore/go-sync/internal/stats"
 )
 
@@ -24,8 +25,12 @@ func Test_Executor(t *testing.T) {
 		maxConcurrency int
 	}{
 		{
-			name:           "unbounded concurrency",
+			name:           "sequential",
 			maxConcurrency: 0,
+		},
+		{
+			name:           "unbounded concurrency",
+			maxConcurrency: -1,
 		},
 		{
 			name:           "single execution",
@@ -42,28 +47,35 @@ func Test_Executor(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			e := NewExecutor(test.maxConcurrency)
+		for _, errGroup := range []bool{false, true} {
+			t.Run(test.name, func(t *testing.T) {
+				e := NewExecutor(test.maxConcurrency)
+				if !errGroup && test.maxConcurrency > 1 {
+					e = &queuedExecutor{
+						maxConcurrency: test.maxConcurrency,
+					}
+				}
 
-			executed := atomic.Int32{}
-			concurrency := stats.Tracked[int]{}
+				executed := atomic.Int32{}
+				concurrency := stats.Tracked[int]{}
 
-			for i := 0; i < count; i++ {
-				e.Execute(func() {
-					defer concurrency.Incr()()
-					executed.Add(1)
-					time.Sleep(10 * time.Nanosecond)
-				})
-			}
+				for i := 0; i < count; i++ {
+					e.Go(func() {
+						defer concurrency.Incr()()
+						executed.Add(1)
+						time.Sleep(10 * time.Nanosecond)
+					})
+				}
 
-			e.Wait()
+				e.Wait(context.Background())
 
-			require.Equal(t, count, int(executed.Load()))
-			if test.maxConcurrency > 0 {
-				require.LessOrEqual(t, concurrency.Max(), test.maxConcurrency)
-			} else {
-				require.GreaterOrEqual(t, concurrency.Max(), 1)
-			}
-		})
+				require.Equal(t, count, int(executed.Load()))
+				if test.maxConcurrency > 0 {
+					require.LessOrEqual(t, concurrency.Max(), test.maxConcurrency)
+				} else {
+					require.GreaterOrEqual(t, concurrency.Max(), 1)
+				}
+			})
+		}
 	}
 }

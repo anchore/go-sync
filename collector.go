@@ -73,21 +73,11 @@ func CollectMap[From comparable, To any](ctx *context.Context, executorName stri
 	})
 }
 
-// ToSeq converts a slice to an iter.Seq
-func ToSeq[T any](values []T) iter.Seq[T] {
-	return func(yield func(T) bool) {
-		for _, value := range values {
-			if !yield(value) {
-				return
-			}
-		}
-	}
-}
-
-// ToSlice takes an iter.Seq and returns a slice of the values returned
-func ToSlice[T any](values iter.Seq[T]) (everything []T) {
-	for v := range values {
-		everything = append(everything, v)
-	}
-	return everything
+// Collect2 is a specialized Collect call which accepts an iter.Seq2 and maps to processor and accumulator taking 2 input parameters
+func Collect2[From1, From2, To any](ctx *context.Context, executorName string, iterator iter.Seq2[From1, From2], processor func(From1, From2) (To, error), accumulator func(From1, From2, To)) error {
+	return Collect[keyValue[From1, From2], To](ctx, executorName, toKeyValueIterator(iterator), func(k keyValue[From1, From2]) (To, error) {
+		return processor(k.Key, k.Value)
+	}, func(k keyValue[From1, From2], to To) {
+		accumulator(k.Key, k.Value, to)
+	})
 }

@@ -102,14 +102,31 @@ func Test_CollectMap(t *testing.T) {
 	require.LessOrEqual(t, concurrency.Max(), maxConcurrency)
 }
 
-func Test_ToSeqToSlice(t *testing.T) {
-	expected := []int{0, 1, 2, 3, 4}
+func Test_Collect2(t *testing.T) {
+	const count = 1000
+	const maxConcurrency = 5
 
-	seq := ToSeq(expected)
+	concurrency := stats.Tracked[int]{}
 
-	got := ToSlice(seq)
+	values := map[int]int{}
+	ctx := SetContextExecutor(context.Background(), "", NewExecutor(maxConcurrency))
+	err := Collect2(&ctx, "", ToIndexSeq(ToSlice(countIter(count))), func(idx, i int) (int, error) {
+		defer concurrency.Incr()()
 
-	require.EqualValues(t, expected, got)
+		time.Sleep(1 * time.Millisecond)
+
+		return i * 10, nil
+	}, func(idx int, i int, out int) {
+		values[i] = out + idx
+	})
+	require.NoError(t, err)
+
+	require.Len(t, values, count)
+	for i := 0; i < count; i++ {
+		require.Equal(t, values[i], (i*10)+i)
+	}
+
+	require.LessOrEqual(t, concurrency.Max(), maxConcurrency)
 }
 
 func countIter(count int) iter.Seq[int] {

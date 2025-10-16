@@ -3,13 +3,16 @@ package sync
 import (
 	"context"
 	"errors"
+	"fmt"
 	"iter"
+	"runtime/debug"
 	"sync"
 )
 
 // Collect iterates over the provided iterator, executing the processor in parallel to map each incoming value to a result.
 // The accumulator is used to apply the results, with an exclusive lock; accumulator will never execute in parallel.
-// All errors returned from processor functions will be joined with errors.Join as the returned error.
+// All errors returned from processor functions will be joined with errors.Join as the returned error. Panics are also
+// captured as errors from processor and accumulator functions
 func Collect[From, To any](ctx *context.Context, executorName string, iterator iter.Seq[From], processor func(From) (To, error), accumulator func(From, To)) error {
 	if processor == nil {
 		panic("no processor provided to Collect")
@@ -28,7 +31,14 @@ func Collect[From, To any](ctx *context.Context, executorName string, iterator i
 		}
 		wg.Add(1)
 		executor.Go(func() {
-			defer wg.Done()
+			defer func() {
+				wg.Done()
+				if err := recover(); err != nil {
+					lock.Lock()
+					defer lock.Unlock()
+					errs = append(errs, toError(err, debug.Stack()))
+				}
+			}()
 			// we may have queued many functions when canceled
 			if (*ctx).Err() != nil {
 				return
@@ -80,4 +90,11 @@ func Collect2[From1, From2, To any](ctx *context.Context, executorName string, i
 	}, func(k keyValue[From1, From2], to To) {
 		accumulator(k.Key, k.Value, to)
 	})
+}
+
+func toError(err any, stack []byte) error {
+	if e, ok := err.(error); ok {
+		return fmt.Errorf("%w\n%v", e, string(stack))
+	}
+	return fmt.Errorf("error: %v\n%v", err, string(stack))
 }

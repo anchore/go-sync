@@ -2,6 +2,7 @@ package sync
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"iter"
 	"sync"
@@ -28,6 +29,27 @@ func Test_CollectHandlesPanics(t *testing.T) {
 			accumulator: func(i int, s string) {},
 			assert: func(t require.TestingT, err error, i ...interface{}) {
 				require.NoError(t, err)
+			},
+		},
+		{
+			name: "single panic",
+			collector: func(from int) (string, error) {
+				if from == 1 {
+					panic(fmt.Errorf("a single panic"))
+				}
+				return "", nil
+			},
+			accumulator: func(i int, s string) {},
+			assert: func(t require.TestingT, err error, i ...interface{}) {
+				require.Error(t, err)
+				p := PanicError{}
+				if errors.As(err, &p) {
+					e := p.Unwrap()
+					require.ErrorContains(t, e, "a single panic")
+					require.Contains(t, p.Stack, "github.com/anchore/go-sync")
+				} else {
+					require.Fail(t, "should be a PanicError")
+				}
 			},
 		},
 		{
@@ -70,7 +92,7 @@ func Test_CollectHandlesPanics(t *testing.T) {
 		{
 			name: "both panics",
 			collector: func(from int) (string, error) {
-				if from == 1 {
+				if from != 1 {
 					return "", nil
 				}
 				panic("oh no collector!")

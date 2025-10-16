@@ -3,7 +3,6 @@ package sync
 import (
 	"context"
 	"errors"
-	"fmt"
 	"iter"
 	"runtime/debug"
 	"sync"
@@ -36,7 +35,7 @@ func Collect[From, To any](ctx *context.Context, executorName string, iterator i
 				if err := recover(); err != nil {
 					lock.Lock()
 					defer lock.Unlock()
-					errs = append(errs, toError(err, debug.Stack()))
+					errs = append(errs, PanicError{Value: err, Stack: string(debug.Stack())})
 				}
 			}()
 			// we may have queued many functions when canceled
@@ -90,11 +89,4 @@ func Collect2[From1, From2, To any](ctx *context.Context, executorName string, i
 	}, func(k keyValue[From1, From2], to To) {
 		accumulator(k.Key, k.Value, to)
 	})
-}
-
-func toError(err any, stack []byte) error {
-	if e, ok := err.(error); ok {
-		return fmt.Errorf("%w\n%v", e, string(stack))
-	}
-	return fmt.Errorf("error: %v\n%v", err, string(stack))
 }

@@ -4,7 +4,11 @@ inputs:
   go-version:
     description: "Go version to install"
     required: true
-    default: "1.21.x"
+    default: ""
+  go-version-file:
+    description: "Go version file to use"
+    required: true
+    default: "go.mod"
   use-go-cache:
     description: "Restore go cache"
     required: true
@@ -27,6 +31,7 @@ runs:
     - uses: actions/setup-go@v3
       with:
         go-version: ${{ inputs.go-version }}
+        go-version-file: ${{ inputs.go-version-file }}
 
     - name: Restore tool cache
       id: tool-cache

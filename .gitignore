@@ -23,3 +23,6 @@ snapshot/
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+/.tool/.binny.state.json
+/.tool/binny
+/.tool/golangci-lint

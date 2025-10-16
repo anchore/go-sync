@@ -11,10 +11,8 @@ jobs:
     name: "Static analysis"
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v4.0.0
-
     - name: Bootstrap environment
-      uses: ./.github/actions/bootstrap
+      uses: anchore/go-make/.github/actions/bootstrap@latest
 
     - name: Run static analysis
       run: make static-analysis
@@ -23,15 +21,8 @@ jobs:
     name: "Unit tests"
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v4.0.0
-
       - name: Bootstrap environment
-        uses: ./.github/actions/bootstrap
+        uses: anchore/go-make/.github/actions/bootstrap@latest
 
       - name: Run unit tests
         run: make unit
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: unit-test-results
-          path: test/results/**/*

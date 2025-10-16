@@ -2,6 +2,8 @@ package sync
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"iter"
 	"sync"
 	"testing"
@@ -11,6 +13,123 @@ import (
 
 	"github.com/anchore/go-sync/internal/stats"
 )
+
+func Test_CollectHandlesPanics(t *testing.T) {
+	tests := []struct {
+		name        string
+		collector   func(from int) (string, error)
+		accumulator func(i int, s string)
+		assert      require.ErrorAssertionFunc
+	}{
+		{
+			name: "no panics",
+			collector: func(from int) (string, error) {
+				return "", nil
+			},
+			accumulator: func(i int, s string) {},
+			assert: func(t require.TestingT, err error, i ...interface{}) {
+				require.NoError(t, err)
+			},
+		},
+		{
+			name: "single panic",
+			collector: func(from int) (string, error) {
+				if from == 1 {
+					panic(fmt.Errorf("a single panic"))
+				}
+				return "", nil
+			},
+			accumulator: func(i int, s string) {},
+			assert: func(t require.TestingT, err error, i ...interface{}) {
+				require.Error(t, err)
+				p := PanicError{}
+				if errors.As(err, &p) {
+					e := p.Unwrap()
+					require.ErrorContains(t, e, "a single panic")
+					require.Contains(t, p.Stack, "github.com/anchore/go-sync")
+				} else {
+					require.Fail(t, "should be a PanicError")
+				}
+			},
+		},
+		{
+			name: "no panics with error",
+			collector: func(from int) (string, error) {
+				return "", fmt.Errorf("an error")
+			},
+			accumulator: func(i int, s string) {},
+			assert: func(t require.TestingT, err error, i ...interface{}) {
+				require.Error(t, err)
+				require.ErrorContains(t, err, "an error")
+			},
+		},
+		{
+			name: "collector panics",
+			collector: func(from int) (string, error) {
+				panic("oh no collector!")
+			},
+			accumulator: func(i int, s string) {},
+			assert: func(t require.TestingT, err error, i ...interface{}) {
+				require.Error(t, err)
+				require.ErrorContains(t, err, "oh no collector")
+				// assert the stack trace
+				require.ErrorContains(t, err, "github.com/anchore/go-sync")
+			},
+		},
+		{
+			name: "accumulator panics",
+			collector: func(from int) (string, error) {
+				return "", nil
+			},
+			accumulator: func(i int, s string) {
+				panic("oh no accumulator!")
+			},
+			assert: func(t require.TestingT, err error, i ...interface{}) {
+				require.Error(t, err)
+				require.ErrorContains(t, err, "oh no accumulator")
+			},
+		},
+		{
+			name: "both panics",
+			collector: func(from int) (string, error) {
+				if from != 1 {
+					return "", nil
+				}
+				panic("oh no collector!")
+			},
+			accumulator: func(i int, s string) {
+				panic("oh no accumulator!")
+			},
+			assert: func(t require.TestingT, err error, i ...interface{}) {
+				require.Error(t, err)
+				require.ErrorContains(t, err, "oh no collector")
+				require.ErrorContains(t, err, "oh no accumulator")
+			},
+		},
+		{
+			name: "collector panics and errors",
+			collector: func(from int) (string, error) {
+				if from == 1 {
+					panic("oh no collector")
+				}
+				return "", fmt.Errorf("an error")
+			},
+			accumulator: func(i int, s string) {},
+			assert: func(t require.TestingT, err error, i ...interface{}) {
+				require.Error(t, err)
+				require.ErrorContains(t, err, "an error")
+				require.ErrorContains(t, err, "oh no collector")
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.TODO()
+			err := Collect(&ctx, "", ToSeq([]int{1, 2, 3}), tt.collector, tt.accumulator)
+			tt.assert(t, err)
+		})
+	}
+}
 
 func Test_CollectCancelRepeat(t *testing.T) {
 	// iterating these tests many times tends to make problems apparent much more quickly,

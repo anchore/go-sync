@@ -33,7 +33,7 @@ func (n *KeySplitIndex[T]) MarshalJSON() ([]byte, error) {
 }
 
 func (n *KeySplitIndex[T]) UnmarshalJSON(bytes []byte) error {
-	values := map[string]T{}
+	values := map[string]*T{}
 	err := json.Unmarshal(bytes, &values)
 	if err != nil {
 		return err
@@ -45,8 +45,8 @@ func (n *KeySplitIndex[T]) UnmarshalJSON(bytes []byte) error {
 }
 
 func collectValues[T any](values map[string]T, key string, node *Node[T]) {
-	if node.set {
-		values[key] = node.value
+	if node.value != nil {
+		values[key] = *node.value
 	}
 	for segment, child := range node.keyMap {
 		collectValues(values, key+segment, child)
@@ -59,15 +59,14 @@ type NodeMap[T any] map[string]*Node[T]
 
 type Node[T any] struct {
 	sync.Locking
-	set       bool
-	value     T
+	value     *T
 	keyMap    NodeMap[T]
 	keyByChar map[rune]string
 }
 
-type NodeUpdateFunc[T any] func(current T) (newValue T)
+type NodeUpdateFunc[T any] func(current *T) (newValue *T)
 
-func (n *Node[T]) Value() (v T) {
+func (n *Node[T]) Value() (v *T) {
 	unlock := n.RLock()
 	v = n.value
 	unlock()
@@ -79,7 +78,7 @@ func (n *Node[T]) Contains(s string) bool {
 	return equal
 }
 
-func (n *Node[T]) Get(s string) (out T) {
+func (n *Node[T]) Get(s string) (out *T) {
 	v, equal := n._find(s)
 	if !equal || v == nil {
 		return
@@ -88,22 +87,22 @@ func (n *Node[T]) Get(s string) (out T) {
 	return
 }
 
-func (n *Node[T]) Set(name string, value T) {
+func (n *Node[T]) Set(name string, value *T) {
 	node := n._makeNodeP(nil, name, nil)
 	node.SetValue(value)
 }
 
-func (n *Node[T]) Remove(s string) (out T) {
+func (n *Node[T]) Remove(s string) (removedValue *T) {
 	v, equal := n._find(s)
 	if !equal || v == nil {
 		return
 	}
-	out = v.Value()
+	removedValue = v.Value()
 	v.UnsetValue()
-	return out
+	return removedValue
 }
 
-func (n *Node[T]) ByPrefix(s string) []T {
+func (n *Node[T]) ByPrefix(s string) []*T {
 	v, _ := n._find(s)
 	if v == nil {
 		return nil
@@ -119,29 +118,26 @@ func (n *Node[T]) Update(name string, f NodeUpdateFunc[T]) {
 	unlock()
 }
 
-func (n *Node[T]) SetValue(value T) {
+func (n *Node[T]) SetValue(value *T) {
 	unlock := n.Lock()
 	n.value = value
-	n.set = true
 	unlock()
 }
 
 func (n *Node[T]) UnsetValue() {
 	unlock := n.Lock()
-	var zero T
-	n.value = zero
-	n.set = false
+	n.value = nil
 	unlock()
 }
 
-func (n *Node[T]) Collect() (values []T) {
+func (n *Node[T]) Collect() (values []*T) {
 	n._collect(&values)
 	return values
 }
 
-func (n *Node[T]) _collect(values *[]T) {
+func (n *Node[T]) _collect(values *[]*T) {
 	unlock := n.RLock()
-	if n.set {
+	if n.value != nil {
 		*values = append(*values, n.value)
 	}
 

@@ -6,7 +6,7 @@ type PrefixSuffix[T any] struct {
 	reverseIndex KeySplitIndex[T]
 }
 
-func (f *PrefixSuffix[T]) Set(key string, value T) {
+func (f *PrefixSuffix[T]) Set(key string, value *T) {
 	f.forwardIndex.Set(key, value)
 	f.reverseIndex.Set(reverse(key), value)
 }
@@ -21,7 +21,7 @@ func (f *PrefixSuffix[T]) Update(key string, fn NodeUpdateFunc[T]) {
 	f.reverseIndex.Update(reverse(key), fn)
 }
 
-func (f *PrefixSuffix[T]) Get(key string) T {
+func (f *PrefixSuffix[T]) Get(key string) *T {
 	return f.forwardIndex.Get(key)
 }
 
@@ -29,11 +29,11 @@ func (f *PrefixSuffix[T]) Contains(key string) bool {
 	return f.forwardIndex.Contains(key)
 }
 
-func (f *PrefixSuffix[T]) ByPrefix(prefix string) []T {
+func (f *PrefixSuffix[T]) ByPrefix(prefix string) []*T {
 	return f.forwardIndex.ByPrefix(prefix)
 }
 
-func (f *PrefixSuffix[T]) BySuffix(suffix string) []T {
+func (f *PrefixSuffix[T]) BySuffix(suffix string) []*T {
 	return f.reverseIndex.ByPrefix(reverse(suffix))
 }
 

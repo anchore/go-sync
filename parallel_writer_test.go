@@ -82,10 +82,7 @@ func Test_ParallelWriter(t *testing.T) {
 			iterations := 0
 			for i := 0; i < len(contents); i += test.bufferSize {
 				iterations++
-				end := i + test.bufferSize
-				if end > len(contents) {
-					end = len(contents)
-				}
+				end := min(i+test.bufferSize, len(contents))
 				buf := contents[i:end]
 				n, err := w.Write([]byte(buf))
 				require.NoError(t, err)

@@ -12,7 +12,7 @@ import (
 )
 
 func Test_Executors(t *testing.T) {
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		Test_Executor(t)
 	}
 }
@@ -59,7 +59,7 @@ func Test_Executor(t *testing.T) {
 				executed := atomic.Int32{}
 				concurrency := stats.Tracked[int]{}
 
-				for i := 0; i < count; i++ {
+				for range count {
 					e.Go(func() {
 						defer concurrency.Incr()()
 						executed.Add(1)

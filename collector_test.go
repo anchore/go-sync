@@ -27,7 +27,7 @@ func Test_CollectHandlesPanics(t *testing.T) {
 				return "", nil
 			},
 			accumulator: func(i int, s string) {},
-			assert: func(t require.TestingT, err error, i ...interface{}) {
+			assert: func(t require.TestingT, err error, i ...any) {
 				require.NoError(t, err)
 			},
 		},
@@ -40,7 +40,7 @@ func Test_CollectHandlesPanics(t *testing.T) {
 				return "", nil
 			},
 			accumulator: func(i int, s string) {},
-			assert: func(t require.TestingT, err error, i ...interface{}) {
+			assert: func(t require.TestingT, err error, i ...any) {
 				require.Error(t, err)
 				p := PanicError{}
 				if errors.As(err, &p) {
@@ -58,7 +58,7 @@ func Test_CollectHandlesPanics(t *testing.T) {
 				return "", fmt.Errorf("an error")
 			},
 			accumulator: func(i int, s string) {},
-			assert: func(t require.TestingT, err error, i ...interface{}) {
+			assert: func(t require.TestingT, err error, i ...any) {
 				require.Error(t, err)
 				require.ErrorContains(t, err, "an error")
 			},
@@ -69,7 +69,7 @@ func Test_CollectHandlesPanics(t *testing.T) {
 				panic("oh no collector!")
 			},
 			accumulator: func(i int, s string) {},
-			assert: func(t require.TestingT, err error, i ...interface{}) {
+			assert: func(t require.TestingT, err error, i ...any) {
 				require.Error(t, err)
 				require.ErrorContains(t, err, "oh no collector")
 				// assert the stack trace
@@ -84,7 +84,7 @@ func Test_CollectHandlesPanics(t *testing.T) {
 			accumulator: func(i int, s string) {
 				panic("oh no accumulator!")
 			},
-			assert: func(t require.TestingT, err error, i ...interface{}) {
+			assert: func(t require.TestingT, err error, i ...any) {
 				require.Error(t, err)
 				require.ErrorContains(t, err, "oh no accumulator")
 			},
@@ -100,7 +100,7 @@ func Test_CollectHandlesPanics(t *testing.T) {
 			accumulator: func(i int, s string) {
 				panic("oh no accumulator!")
 			},
-			assert: func(t require.TestingT, err error, i ...interface{}) {
+			assert: func(t require.TestingT, err error, i ...any) {
 				require.Error(t, err)
 				require.ErrorContains(t, err, "oh no collector")
 				require.ErrorContains(t, err, "oh no accumulator")
@@ -115,7 +115,7 @@ func Test_CollectHandlesPanics(t *testing.T) {
 				return "", fmt.Errorf("an error")
 			},
 			accumulator: func(i int, s string) {},
-			assert: func(t require.TestingT, err error, i ...interface{}) {
+			assert: func(t require.TestingT, err error, i ...any) {
 				require.Error(t, err)
 				require.ErrorContains(t, err, "an error")
 				require.ErrorContains(t, err, "oh no collector")
@@ -134,7 +134,7 @@ func Test_CollectHandlesPanics(t *testing.T) {
 func Test_CollectCancelRepeat(t *testing.T) {
 	// iterating these tests many times tends to make problems apparent much more quickly,
 	// when they may succeed under certain conditions
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		Test_CollectCancel(t)
 	}
 }
@@ -189,7 +189,7 @@ func Test_CollectSlice(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, values, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		require.Contains(t, values, i*10)
 	}
 
@@ -214,7 +214,7 @@ func Test_CollectMap(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, values, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		require.Equal(t, values[i], i*10)
 	}
 
@@ -241,7 +241,7 @@ func Test_Collect2(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, values, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		require.Equal(t, values[i], (i*10)+i)
 	}
 
@@ -250,7 +250,7 @@ func Test_Collect2(t *testing.T) {
 
 func countIter(count int) iter.Seq[int] {
 	return func(yield func(int) bool) {
-		for i := 0; i < count; i++ {
+		for i := range count {
 			if !yield(i) {
 				return
 			}

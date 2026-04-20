@@ -15,7 +15,7 @@ func Test_Float64(t *testing.T) {
 	concurrency := 3925
 	num := 3
 	wg := sync.WaitGroup{}
-	for i := 0; i < concurrency; i++ {
+	for range concurrency {
 		wg.Add(1)
 		go func() {
 			val.Add(float64(num))

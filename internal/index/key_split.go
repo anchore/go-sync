@@ -290,10 +290,7 @@ func (n *Node[T]) _makeNodeP(unlock *sync.UnlockFunc, name string, nodeIfEmpty *
 		n._exclusiveLock(unlock)
 
 		commonLength := 1 // the first character already matches
-		minLength := len(key)
-		if len(name) < minLength {
-			minLength = len(name)
-		}
+		minLength := min(len(name), len(key))
 		for ; commonLength < minLength; commonLength++ {
 			if key[commonLength] != name[commonLength] {
 				break

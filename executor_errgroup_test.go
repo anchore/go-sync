@@ -11,7 +11,7 @@ import (
 func Test_errGroupExecutorRepeated(t *testing.T) {
 	// iterating these tests many times tends to make problems apparent much more quickly,
 	// when they may succeed under certain conditions
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		Test_errGroupExecutor(t)
 	}
 }
@@ -74,7 +74,7 @@ func Test_errGroupExecutor(t *testing.T) {
 }
 
 func Test_errGroupExecutorCancelRepeat(t *testing.T) {
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		Test_errGroupExecutorCancel(t)
 	}
 }

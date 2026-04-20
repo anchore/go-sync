@@ -35,13 +35,13 @@ func Test_queuedExecutor(t *testing.T) {
 
 	e := &queuedExecutor{maxConcurrency: concurrency}
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		expected = append(expected, i)
 		e.Go(makeFunc(i))
 	}
 
 	go func() {
-		for i := 0; i < count; i++ {
+		for i := range count {
 			wgs[i].Done()
 		}
 	}()
@@ -76,7 +76,7 @@ func Test_queuedExecutorSmall(t *testing.T) {
 	}
 
 	e := &queuedExecutor{maxConcurrency: concurrency}
-	for i := 0; i < count; i++ {
+	for i := range count {
 		e.Go(makeFunc(i))
 	}
 
@@ -85,7 +85,7 @@ func Test_queuedExecutorSmall(t *testing.T) {
 	require.Equal(t, 2, concurrent.Val())
 
 	go func() {
-		for i := 0; i < count; i++ {
+		for i := range count {
 			wgs[i].Done()
 		}
 	}()
@@ -153,7 +153,7 @@ func Test_explicitExecutorLimiting(t *testing.T) {
 func Test_queuedExecutorCancelRepeat(t *testing.T) {
 	// iterating these tests many times tends to make problems apparent much more quickly,
 	// when they may succeed under certain conditions
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		Test_queuedExecutorCancel(t)
 	}
 }

@@ -131,6 +131,33 @@ func Test_CollectHandlesPanics(t *testing.T) {
 	}
 }
 
+func Test_CollectHandlesPanicsConcurrentlyRepeat(t *testing.T) {
+	// iterating these tests many times tends to make problems apparent much more quickly,
+	// when they may succeed under certain conditions
+	for range 200 {
+		Test_CollectHandlesPanicsConcurrently(t)
+	}
+}
+
+func Test_CollectHandlesPanicsConcurrently(t *testing.T) {
+	// Test_CollectHandlesPanics drives Collect on the default serial executor, where Go runs the
+	// function inline and nothing can race. On a concurrent executor the panic is recovered on
+	// the worker's own goroutine, so releasing the waiter before recording the error lets Collect
+	// return before it is appended - and the error is lost.
+	ctx := SetContextExecutor(context.TODO(), "panics", NewExecutor(8))
+
+	err := Collect(&ctx, "panics", ToSeq([]int{0, 1, 2, 3, 4, 5, 6, 7}),
+		func(from int) (string, error) {
+			if from == 3 {
+				panic("oh no, concurrently!")
+			}
+			return "", nil
+		}, nil)
+
+	require.Error(t, err, "the panic error was dropped")
+	require.ErrorContains(t, err, "oh no, concurrently")
+}
+
 func Test_CollectCancelRepeat(t *testing.T) {
 	// iterating these tests many times tends to make problems apparent much more quickly,
 	// when they may succeed under certain conditions
